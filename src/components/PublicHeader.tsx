@@ -57,7 +57,7 @@ export function PublicHeader() {
     <>
       <header className="sticky top-0 z-50 bg-white border-b border-slate-200 h-20 flex items-center justify-between px-4 md:px-10">
         {/* Logo – mai mic pe mobil, lipit de stânga */}
-        <Link href="/" className="flex items-center flex-shrink-0 origin-left scale-[0.42] md:scale-100 pl-0" aria-label="ReportKit">
+        <Link href="/" className="flex items-center flex-shrink-0 origin-left scale-[0.52] md:scale-100 pl-0" aria-label="ReportKit">
           <SiteLogo />
         </Link>
 
