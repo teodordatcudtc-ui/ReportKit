@@ -84,17 +84,17 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user, account, trigger, session }) {
-      if (user) {
-        if (user.id) {
-          token.id = user.id;
-          token.email = user.email;
-          token.name = user.name;
-        } else if (user.email && account?.provider === 'google') {
-          const dbUser = await findOrCreateUserByEmail(user.email, user.name ?? null);
-          token.id = dbUser.id;
-          token.email = dbUser.email;
-          token.name = dbUser.name ?? undefined;
-        }
+      // For Google OAuth, NextAuth sets user.id (Google subject). We must map it to our DB user id.
+      if (account?.provider === 'google' && user?.email) {
+        const dbUser = await findOrCreateUserByEmail(user.email, user.name ?? null);
+        token.id = dbUser.id;
+        token.email = dbUser.email;
+        token.name = dbUser.name ?? undefined;
+      } else if (user) {
+        // Credentials provider returns our DB user id.
+        if (user.id) token.id = user.id;
+        if (user.email) token.email = user.email;
+        if (user.name) token.name = user.name;
       }
       if (trigger === 'update' && session?.user) {
         if (typeof session.user.name === 'string') token.name = session.user.name;

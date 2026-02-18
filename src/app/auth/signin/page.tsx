@@ -16,7 +16,7 @@ function SignInForm() {
 
   function handleGoogleSignIn() {
     setError('');
-    signIn('google', { callbackUrl });
+    signIn('google', { callbackUrl: '/onboarding' });
   }
 
   async function handleSubmit(e: React.FormEvent) {

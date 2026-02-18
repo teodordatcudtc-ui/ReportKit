@@ -11,10 +11,34 @@ export default function OnboardingPage() {
   const [primaryColor, setPrimaryColor] = useState('#3B82F6');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingExisting, setCheckingExisting] = useState(true);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.replace('/auth/signin?callbackUrl=/onboarding');
   }, [status, router]);
+
+  useEffect(() => {
+    if (status !== 'authenticated' || !session?.user?.id) return;
+    let cancelled = false;
+    setCheckingExisting(true);
+    fetch('/api/agencies')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((agency) => {
+        if (cancelled) return;
+        if (agency?.id) {
+          router.replace('/dashboard');
+          return;
+        }
+        setCheckingExisting(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCheckingExisting(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [status, session?.user?.id, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,7 +62,7 @@ export default function OnboardingPage() {
     router.push('/dashboard');
   }
 
-  if (status === 'loading' || !session) {
+  if (status === 'loading' || !session || checkingExisting) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-pulse text-slate-500">Loading…</div>
