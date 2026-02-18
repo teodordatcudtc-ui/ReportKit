@@ -7,7 +7,7 @@ export function PublicFooter() {
       <div className="max-w-[1200px] mx-auto px-6 md:px-10 py-12">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
           <Link href="/" className="flex items-center flex-shrink-0" aria-label="ReportKit">
-            <SiteLogo />
+            <SiteLogo size="small" />
           </Link>
           <nav className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
             <Link href="/#functionalitati" className="text-slate-600 hover:text-slate-900 font-medium transition-colors">

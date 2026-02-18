@@ -21,6 +21,12 @@ export const metadata: Metadata = {
   description: 'Rapoarte pentru clienți din Google Ads & Meta Ads, generate automat.',
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{

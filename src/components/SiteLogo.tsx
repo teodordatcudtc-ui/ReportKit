@@ -2,18 +2,19 @@
 
 import { useState } from 'react';
 
-type SiteLogoSize = 'default' | 'compact';
+type SiteLogoSize = 'default' | 'compact' | 'small';
 
 const sizeClasses: Record<SiteLogoSize, string> = {
   default: 'w-60 h-60 rounded-2xl',
-  compact: 'w-48 h-48 rounded-xl', // ~3× mai mare decât 64px, iese din spațiul alocat (overflow)
+  compact: 'w-48 h-48 rounded-xl',
+  small: 'w-14 h-14 rounded-xl',
 };
 
 /**
  * Iconița default (grafic) folosită când nu există logo personalizat.
  */
 function DefaultIcon({ size }: { size: SiteLogoSize }) {
-  const dim = size === 'default' ? 120 : 96;
+  const dim = size === 'default' ? 120 : size === 'compact' ? 96 : 28;
   return (
     <svg width={dim} height={dim} fill="none" stroke="white" strokeWidth="2.5" viewBox="0 0 24 24">
       <path d="M3 3v18h18" />
@@ -26,6 +27,7 @@ function DefaultIcon({ size }: { size: SiteLogoSize }) {
 const LOGO_SRC: Record<SiteLogoSize, string> = {
   default: '/logo.png',
   compact: '/logo-dashboard.png',
+  small: '/logo.png',
 };
 
 /**

@@ -7,14 +7,36 @@ import { rateLimit } from '@/lib/security/rateLimit';
 
 async function findOrCreateUserByEmail(email: string, name: string | null): Promise<{ id: string; email: string; name: string | null }> {
   const supabase = getSupabaseAdmin();
-  const { data: existing } = await supabase.from('users').select('id, email, name').eq('email', email.toLowerCase()).single();
-  if (existing) return existing;
-  const { data: created, error } = await supabase
+  const normalizedEmail = email?.trim()?.toLowerCase() ?? '';
+  if (!normalizedEmail) throw new Error('Email required for Google sign-in');
+
+  const { data: existing, error: selectError } = await supabase
     .from('users')
-    .insert({ email: email.toLowerCase(), name: name ?? null, password_hash: null })
+    .select('id, email, name')
+    .eq('email', normalizedEmail)
+    .maybeSingle();
+
+  if (selectError) {
+    console.error('[auth] findOrCreateUserByEmail select error:', selectError);
+    throw selectError;
+  }
+  if (existing) return existing;
+
+  const { data: created, error: insertError } = await supabase
+    .from('users')
+    .insert({
+      email: normalizedEmail,
+      name: name?.trim() || null,
+      password_hash: null,
+    })
     .select('id, email, name')
     .single();
-  if (error) throw error;
+
+  if (insertError) {
+    console.error('[auth] findOrCreateUserByEmail insert error:', insertError);
+    throw insertError;
+  }
+  if (!created) throw new Error('User insert returned no data');
   return created;
 }
 

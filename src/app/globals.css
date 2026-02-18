@@ -43,6 +43,12 @@ body {
   font-family: var(--font-instrument-serif), Georgia, serif;
 }
 
+/* Carusel orașe – derulare automată pe mobil */
+@keyframes scroll-left {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

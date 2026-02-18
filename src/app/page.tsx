@@ -1,41 +1,11 @@
 import Link from 'next/link';
 import { PublicFooter } from '@/components/PublicFooter';
-import { SiteLogo } from '@/components/SiteLogo';
+import { PublicHeader } from '@/components/PublicHeader';
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#ECEEF2]">
-      {/* Nav */}
-      <header className="sticky top-0 z-50 bg-white border-b border-slate-200 h-20 flex items-center justify-between px-6 md:px-10">
-        <Link href="/" className="flex items-center flex-shrink-0" aria-label="ReportKit">
-          <SiteLogo />
-        </Link>
-        <nav className="hidden md:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
-          <a href="#functionalitati" className="text-[14px] font-medium text-slate-600 px-4 py-2 rounded-rk-sm hover:text-slate-900 hover:bg-slate-100 transition-colors leading-none">
-            Funcționalități
-          </a>
-          <a href="#preturi" className="text-[14px] font-medium text-slate-600 px-4 py-2 rounded-rk-sm hover:text-slate-900 hover:bg-slate-100 transition-colors leading-none">
-            Prețuri
-          </a>
-          <a href="#contact" className="text-[14px] font-medium text-slate-600 px-4 py-2 rounded-rk-sm hover:text-slate-900 hover:bg-slate-100 transition-colors leading-none">
-            Contact
-          </a>
-        </nav>
-        <div className="flex items-center gap-3 flex-shrink-0">
-          <Link
-            href="/auth/signin"
-            className="flex items-center justify-center h-11 text-[14px] font-semibold text-blue-700 px-4 rounded-rk-sm hover:bg-blue-700/10 transition-colors"
-          >
-            Autentificare
-          </Link>
-          <Link
-            href="/auth/signup"
-            className="inline-flex items-center justify-center h-11 px-5 bg-blue-700 text-white text-[14px] font-semibold rounded-rk-sm shadow-[0_1px_2px_rgba(30,64,175,.2)] hover:bg-blue-500 transition-colors"
-          >
-            Încearcă gratuit
-          </Link>
-        </div>
-      </header>
+      <PublicHeader />
 
       {/* Hero */}
       <section className="relative bg-white border-b border-slate-200 px-6 md:px-10 pt-20 md:pt-28 pb-16 md:pb-24 text-center overflow-visible">
@@ -103,16 +73,16 @@ export default function HomePage() {
           <p className="text-lg text-slate-500 max-w-[520px] mx-auto mb-12 leading-relaxed">
             ReportKit adună datele din toate platformele și creează rapoarte clare pentru clienții tăi — fără ore pierdute în Excel.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="flex flex-row flex-wrap items-center justify-center gap-2 sm:gap-4">
             <Link
               href="/auth/signup"
-              className="inline-flex items-center justify-center px-10 py-4 bg-blue-700 text-white text-base font-semibold rounded-rk-lg shadow-[0_1px_2px_rgba(30,64,175,.2)] hover:bg-blue-500 transition-colors"
+              className="inline-flex items-center justify-center px-5 py-3 sm:px-10 sm:py-4 text-sm sm:text-base font-semibold rounded-rk-lg bg-blue-700 text-white shadow-[0_1px_2px_rgba(30,64,175,.2)] hover:bg-blue-500 transition-colors"
             >
               Începe gratuit →
             </Link>
             <Link
               href="/auth/signin"
-              className="inline-flex items-center justify-center px-10 py-4 bg-white text-slate-900 border-[1.5px] border-slate-200 rounded-rk-lg text-base font-semibold shadow-rk hover:border-slate-400 hover:bg-slate-50 transition-colors"
+              className="inline-flex items-center justify-center px-5 py-3 sm:px-10 sm:py-4 text-sm sm:text-base font-semibold rounded-rk-lg bg-white text-slate-900 border-[1.5px] border-slate-200 shadow-rk hover:border-slate-400 hover:bg-slate-50 transition-colors"
             >
               Vezi demo live
             </Link>
@@ -159,15 +129,19 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Logos strip */}
-      <section className="bg-slate-50 border-y border-slate-200 py-10 px-6 md:px-10 flex flex-wrap items-center justify-between gap-6">
-        <span className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Folosit de agenții din</span>
-        <div className="flex items-center gap-10 flex-wrap">
-          <span className="text-base font-bold text-slate-400">🇷🇴 București</span>
-          <span className="text-base font-bold text-slate-400">🇷🇴 Cluj-Napoca</span>
-          <span className="text-base font-bold text-slate-400">🇷🇴 Timișoara</span>
-          <span className="text-base font-bold text-slate-400">🇷🇴 Iași</span>
-          <span className="text-base font-bold text-slate-400">🇷🇴 Brașov</span>
+      {/* Logos strip – pe mobil carusel auto-derulant, fără emoji */}
+      <section className="bg-slate-50 border-y border-slate-200 py-10 px-6 md:px-10">
+        <div className="md:flex md:flex-wrap md:items-center md:justify-between md:gap-6">
+          <span className="block text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4 md:mb-0">Folosit de agenții din</span>
+          <div className="md:flex md:items-center md:gap-10 md:flex-wrap overflow-hidden">
+            <div className="flex animate-[scroll-left_20s_linear_infinite] gap-10 md:animate-none md:flex-wrap">
+              {['București', 'Cluj-Napoca', 'Timișoara', 'Iași', 'Brașov', 'București', 'Cluj-Napoca', 'Timișoara', 'Iași', 'Brașov'].map((city, i) => (
+                <span key={`${city}-${i}`} className="text-base font-bold text-slate-400 whitespace-nowrap flex-shrink-0">
+                  {city}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
