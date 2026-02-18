@@ -84,10 +84,25 @@ export function ClientPerformanceCharts({ google, meta }: ClientPerformanceChart
     conversions: (g?.conversions ?? 0) + (m?.conversions ?? 0),
   }));
 
+  const isConnectedNoData = (google && !hasGoogle) || (meta && !hasMeta);
   if (!hasData) {
     return (
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center text-slate-500 text-sm">
-        Nu există date pentru perioada selectată. Conectează Google Ads sau Meta Ads și alege un interval cu campanii active.
+      <div className="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center space-y-3">
+        {isConnectedNoData ? (
+          <>
+            <p className="text-slate-700 font-medium">Contul este conectat corect.</p>
+            <p className="text-slate-500 text-sm max-w-md mx-auto">
+              Nu există campanii sau cheltuieli în perioada selectată. Pentru un client care are reclame active pe Google Ads sau Meta Ads, aici vor apărea impresii, click-uri, cheltuieli și graficele live – același cod folosește API-urile oficiale și returnează date reale.
+            </p>
+            <p className="text-slate-400 text-xs">
+              Poți verifica și în Graph API Explorer (Meta) sau Google Ads API pentru același interval.
+            </p>
+          </>
+        ) : (
+          <p className="text-slate-500 text-sm">
+            Nu există date pentru perioada selectată. Conectează Google Ads sau Meta Ads și alege un interval cu campanii active.
+          </p>
+        )}
       </div>
     );
   }
