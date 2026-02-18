@@ -19,7 +19,9 @@ export async function GET(req: Request) {
   const origin = new URL(req.url).origin;
   const redirectUri = `${origin}/api/auth/meta/callback`;
   const state = Buffer.from(JSON.stringify({ client_id: clientId })).toString('base64url');
-  const scope = 'ads_read,business_management';
+  // Facebook Login accepts public_profile, business_management, ads_management.
+  // ads_read is invalid in the OAuth dialog; ads_management grants read access for ad accounts.
+  const scope = 'public_profile,business_management,ads_management';
   const url = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${state}`;
   return NextResponse.redirect(url);
 }

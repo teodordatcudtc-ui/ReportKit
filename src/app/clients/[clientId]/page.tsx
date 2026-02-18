@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
+import { ClientPerformanceCharts, type PlatformMetrics } from '@/components/ClientPerformanceCharts';
 
 interface ClientDetail {
   id: string;
@@ -32,6 +33,9 @@ function ClientDetailContent() {
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState('');
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [metricsRange, setMetricsRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
+  const [metrics, setMetrics] = useState<{ google?: PlatformMetrics; meta?: PlatformMetrics } | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
 
   const success = searchParams.get('success');
   const error = searchParams.get('error');
@@ -46,6 +50,44 @@ function ClientDetailContent() {
       })
       .catch(() => setLoading(false));
   }, [clientId]);
+
+  const loadMetrics = useCallback(() => {
+    if (!clientId || !metricsRange.start || !metricsRange.end) return;
+    setMetricsLoading(true);
+    fetch(`/api/clients/${clientId}/metrics?date_start=${metricsRange.start}&date_end=${metricsRange.end}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setMetrics(data);
+        setMetricsLoading(false);
+      })
+      .catch(() => setMetricsLoading(false));
+  }, [clientId, metricsRange.start, metricsRange.end]);
+
+  useEffect(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    setMetricsRange({
+      start: start.toISOString().slice(0, 10),
+      end: end.toISOString().slice(0, 10),
+    });
+  }, [clientId]);
+
+  useEffect(() => {
+    if (!clientId || !metricsRange.start || !metricsRange.end) return;
+    if (!client?.google_ads_connected && !client?.meta_ads_connected) {
+      setMetrics(null);
+      return;
+    }
+    setMetricsLoading(true);
+    fetch(`/api/clients/${clientId}/metrics?date_start=${metricsRange.start}&date_end=${metricsRange.end}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setMetrics(data);
+        setMetricsLoading(false);
+      })
+      .catch(() => setMetricsLoading(false));
+  }, [clientId, metricsRange.start, metricsRange.end, client?.google_ads_connected, client?.meta_ads_connected]);
 
   useEffect(() => {
     const now = new Date();
@@ -169,6 +211,49 @@ function ClientDetailContent() {
           </div>
         </div>
       </section>
+
+      {(client.google_ads_connected || client.meta_ads_connected) && (
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <h2 className="font-semibold text-slate-800">Performanță live</h2>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={metricsRange.start}
+                onChange={(e) => setMetricsRange((p) => ({ ...p, start: e.target.value }))}
+                className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
+              />
+              <span className="text-slate-500">–</span>
+              <input
+                type="date"
+                value={metricsRange.end}
+                onChange={(e) => setMetricsRange((p) => ({ ...p, end: e.target.value }))}
+                className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
+              />
+              <button
+                type="button"
+                onClick={loadMetrics}
+                disabled={metricsLoading}
+                className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 disabled:opacity-50"
+              >
+                {metricsLoading ? 'Se încarcă…' : 'Actualizează'}
+              </button>
+            </div>
+          </div>
+          {metricsLoading && !metrics ? (
+            <div className="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center text-slate-500">
+              Se încarcă datele…
+            </div>
+          ) : (
+            <ClientPerformanceCharts
+              google={metrics?.google}
+              meta={metrics?.meta}
+              dateStart={metricsRange.start}
+              dateEnd={metricsRange.end}
+            />
+          )}
+        </section>
+      )}
 
       <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between flex-wrap gap-4">

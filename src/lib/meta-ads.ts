@@ -86,3 +86,56 @@ function defaultMetaMetrics(): MetaAdsMetrics {
     cpc: 0,
   };
 }
+
+export interface MetaAdsDailyRow {
+  date: string;
+  impressions: number;
+  clicks: number;
+  spend: number;
+  conversions: number;
+}
+
+export async function fetchMetaAdsDaily(
+  adAccountId: string,
+  accessToken: string,
+  dateStart: string,
+  dateEnd: string
+): Promise<MetaAdsDailyRow[]> {
+  const accountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
+  const fields = 'impressions,clicks,spend,actions';
+  const url = `https://graph.facebook.com/v21.0/${accountId}/insights?fields=${fields}&time_range=${JSON.stringify({
+    since: dateStart,
+    until: dateEnd,
+  })}&time_increment=1&access_token=${encodeURIComponent(accessToken)}`;
+  try {
+    const res = await fetch(url);
+    const data = (await res.json()) as {
+      data?: Array<{
+        date_start?: string;
+        impressions?: string;
+        clicks?: string;
+        spend?: string;
+        actions?: Array<{ action_type: string; value: string }>;
+      }>;
+      error?: { message: string };
+    };
+    if (data.error || !data.data) return [];
+    return data.data.map((row) => {
+      let conversions = 0;
+      for (const a of row.actions ?? []) {
+        if (['purchase', 'lead', 'omni_purchase'].includes(a.action_type)) {
+          conversions += Number(a.value ?? 0);
+        }
+      }
+      return {
+        date: row.date_start ?? '',
+        impressions: Number(row.impressions ?? 0),
+        clicks: Number(row.clicks ?? 0),
+        spend: Number(row.spend ?? 0),
+        conversions,
+      };
+    }).filter((r) => r.date).sort((a, b) => a.date.localeCompare(b.date));
+  } catch {
+    return [];
+  }
+}

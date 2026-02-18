@@ -114,3 +114,75 @@ export async function fetchGoogleAdsData(
     average_cpc: count > 0 ? averageCpc / count : 0,
   };
 }
+
+export interface GoogleAdsDailyRow {
+  date: string;
+  impressions: number;
+  clicks: number;
+  cost_micros: number;
+  conversions: number;
+}
+
+export async function fetchGoogleAdsDaily(
+  customerId: string,
+  accessToken: string,
+  dateStart: string,
+  dateEnd: string
+): Promise<GoogleAdsDailyRow[]> {
+  const devToken = process.env.GOOGLE_DEVELOPER_TOKEN;
+  if (!devToken) return [];
+  const query = `
+    SELECT
+      segments.date,
+      metrics.impressions,
+      metrics.clicks,
+      metrics.cost_micros,
+      metrics.conversions
+    FROM campaign
+    WHERE segments.date BETWEEN '${dateStart}' AND '${dateEnd}'
+  `;
+  const url = `https://googleads.googleapis.com/v16/customers/${customerId}/googleAds:search`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'developer-token': devToken,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query }),
+  });
+  if (!res.ok) return [];
+  type Row = {
+    segments?: { date?: string };
+    metrics?: {
+      impressions?: string;
+      clicks?: string;
+      costMicros?: string;
+      conversions?: string;
+    };
+  };
+  const data = (await res.json()) as { results?: Row[] };
+  const results = data.results ?? [];
+  const byDate: Record<string, GoogleAdsDailyRow> = {};
+  for (const row of results) {
+    const date = row.segments?.date ?? '';
+    if (!date) continue;
+    if (!byDate[date]) {
+      byDate[date] = {
+        date,
+        impressions: 0,
+        clicks: 0,
+        cost_micros: 0,
+        conversions: 0,
+      };
+    }
+    const m = row.metrics;
+    if (m) {
+      byDate[date].impressions += Number(m.impressions ?? 0);
+      byDate[date].clicks += Number(m.clicks ?? 0);
+      byDate[date].cost_micros += Number(m.costMicros ?? 0);
+      byDate[date].conversions += Number(m.conversions ?? 0);
+    }
+  }
+  return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
+}
