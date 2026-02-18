@@ -2,15 +2,29 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
+import { getPasswordIssues, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '@/lib/security/password';
+import { rateLimit } from '@/lib/security/rateLimit';
+import { getClientIp } from '@/lib/security/request';
+import type { NextRequest } from 'next/server';
 
 const signupSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8, 'Min 8 characters'),
+  password: z
+    .string()
+    .min(PASSWORD_MIN_LENGTH, `Min ${PASSWORD_MIN_LENGTH} characters`)
+    .max(PASSWORD_MAX_LENGTH, `Max ${PASSWORD_MAX_LENGTH} characters`),
   name: z.string().min(1).optional(),
+  website: z.string().optional(), // honeypot
 });
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    const ip = getClientIp(req);
+    const rl = rateLimit(`signup:ip:${ip}`, { limit: 5, windowMs: 60_000 });
+    if (!rl.ok) {
+      return NextResponse.json({ error: 'Too many attempts. Try again in a minute.' }, { status: 429 });
+    }
+
     const body = await req.json();
     const parsed = signupSchema.safeParse(body);
     if (!parsed.success) {
@@ -21,7 +35,17 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    const { email, password, name } = parsed.data;
+    const { email, password, name, website } = parsed.data;
+
+    if (typeof website === 'string' && website.trim().length > 0) {
+      // honeypot filled => likely bot
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+    }
+
+    const pwIssues = getPasswordIssues(password);
+    if (pwIssues.length > 0) {
+      return NextResponse.json({ error: `Password: ${pwIssues[0]}` }, { status: 400 });
+    }
 
     const { data: existing } = await getSupabaseAdmin()
       .from('users')

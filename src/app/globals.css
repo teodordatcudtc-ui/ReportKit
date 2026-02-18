@@ -2,22 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ReportKit design tokens */
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0F172A;
+  --slate-50: #F8FAFC;
+  --slate-100: #F1F5F9;
+  --slate-200: #E2E8F0;
+  --slate-400: #94A3B8;
+  --slate-500: #64748B;
+  --slate-600: #475569;
+  --slate-900: #0F172A;
+  --blue-500: #3B82F6;
+  --blue-700: #1E40AF;
+  --green-500: #10B981;
+  --red-500: #EF4444;
+  --amber-500: #F59E0B;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --shadow-sm: 0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04);
+  --shadow-md: 0 4px 12px rgba(15,23,42,0.08), 0 2px 4px rgba(15,23,42,0.05);
+  --shadow-lg: 0 12px 32px rgba(15,23,42,0.10), 0 4px 8px rgba(15,23,42,0.06);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ReportKit typography helpers */
+.font-display {
+  font-family: var(--font-instrument-serif), Georgia, serif;
 }
 
 @layer utilities {
