@@ -5,8 +5,12 @@ import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { z } from 'zod';
 
 const createSchema = z.object({
-  agency_name: z.string().min(1),
+  agency_name: z.string().min(1).optional(),
   primary_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  logo_url: z.string().url().nullable().optional(),
+  website_url: z.string().url().nullable().optional(),
+  contact_email: z.string().email().nullable().optional(),
+  contact_phone: z.string().max(32).nullable().optional(),
 });
 
 export async function GET() {
@@ -43,26 +47,37 @@ export async function POST(req: Request) {
     .eq('user_id', session.user.id)
     .limit(1)
     .single();
+  const updates: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+  if (parsed.data.agency_name !== undefined) updates.agency_name = parsed.data.agency_name;
+  if (parsed.data.primary_color !== undefined) updates.primary_color = parsed.data.primary_color;
+  if (parsed.data.logo_url !== undefined) updates.logo_url = parsed.data.logo_url;
+  if (parsed.data.website_url !== undefined) updates.website_url = parsed.data.website_url;
+  if (parsed.data.contact_email !== undefined) updates.contact_email = parsed.data.contact_email;
+  if (parsed.data.contact_phone !== undefined) updates.contact_phone = parsed.data.contact_phone;
+
   if (existing) {
     const { data, error } = await getSupabaseAdmin()
       .from('agencies')
-      .update({
-        agency_name: parsed.data.agency_name,
-        primary_color: parsed.data.primary_color ?? '#3B82F6',
-        updated_at: new Date().toISOString(),
-      })
+      .update(updates)
       .eq('id', existing.id)
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(data);
   }
+  const agencyName = parsed.data.agency_name && String(parsed.data.agency_name).trim();
+  if (!agencyName) {
+    return NextResponse.json({ error: 'agency_name is required for new agency' }, { status: 400 });
+  }
   const { data, error } = await getSupabaseAdmin()
     .from('agencies')
     .insert({
       user_id: session.user.id,
-      agency_name: parsed.data.agency_name,
+      agency_name: agencyName,
       primary_color: parsed.data.primary_color ?? '#3B82F6',
+      logo_url: parsed.data.logo_url ?? null,
     })
     .select()
     .single();

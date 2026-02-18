@@ -212,7 +212,7 @@ export default function HomePage() {
                 <div className="font-display text-4xl text-slate-900 mt-2">€0 <span className="font-sans text-sm text-slate-500 font-normal">/lună</span></div>
               </div>
               <ul className="space-y-3">
-                {['3 clienți activi', '2 integrări', 'Export PDF', 'Support email'].map((x) => (
+                {['3 clienți activi', '2 integrări', 'Export PDF', 'Suport email'].map((x) => (
                   <li key={x} className="flex items-center gap-2.5 text-sm text-slate-700">
                     <span className="w-5 h-5 rounded-full bg-[#ECFDF5] text-rk-green flex items-center justify-center text-xs font-extrabold flex-shrink-0">✓</span>
                     {x}

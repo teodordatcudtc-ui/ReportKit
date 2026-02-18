@@ -13,6 +13,12 @@ export interface Agency {
   agency_name: string;
   logo_url: string | null;
   primary_color: string;
+  /** Website (white-label footer) */
+  website_url: string | null;
+  /** Contact email (white-label footer) */
+  contact_email: string | null;
+  /** Contact phone (white-label footer) */
+  contact_phone: string | null;
   created_at: string;
   updated_at: string;
 }

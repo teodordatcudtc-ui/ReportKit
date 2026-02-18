@@ -57,12 +57,25 @@ export async function POST(req: Request) {
     .single();
   if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
 
-  const { data: agency } = await getSupabaseAdmin()
+  let agency: { agency_name: string; logo_url: string | null; primary_color: string; website_url?: string | null; contact_email?: string | null; contact_phone?: string | null };
+  const { data: agencyFull, error: agencyErr } = await getSupabaseAdmin()
     .from('agencies')
-    .select('agency_name, logo_url, primary_color')
+    .select('agency_name, logo_url, primary_color, website_url, contact_email, contact_phone')
     .eq('user_id', session.user.id)
     .single();
-  if (!agency) return NextResponse.json({ error: 'Agency not found' }, { status: 400 });
+  if (agencyErr) {
+    const { data: agencyBase } = await getSupabaseAdmin()
+      .from('agencies')
+      .select('agency_name, logo_url, primary_color')
+      .eq('user_id', session.user.id)
+      .single();
+    if (!agencyBase) return NextResponse.json({ error: 'Agency not found' }, { status: 400 });
+    agency = { ...agencyBase, website_url: null, contact_email: null, contact_phone: null };
+  } else if (agencyFull) {
+    agency = agencyFull as typeof agency;
+  } else {
+    return NextResponse.json({ error: 'Agency not found' }, { status: 400 });
+  }
 
   const { data: tokens } = await getSupabaseAdmin()
     .from('api_tokens')

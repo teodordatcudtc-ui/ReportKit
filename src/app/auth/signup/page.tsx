@@ -25,7 +25,7 @@ export default function SignUpPage() {
     e.preventDefault();
     setError('');
     if (passwordIssues.length > 0) {
-      setError(`Password: ${passwordIssues[0]}`);
+      setError(`Parolă: ${passwordIssues[0]}`);
       return;
     }
     setLoading(true);
@@ -36,7 +36,7 @@ export default function SignUpPage() {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setError(typeof data.error === 'string' ? data.error : 'Registration failed');
+      setError(typeof data.error === 'string' ? data.error : 'Înregistrarea a eșuat.');
       setLoading(false);
       return;
     }
@@ -61,7 +61,7 @@ export default function SignUpPage() {
           <Link href="/" className="text-2xl font-bold text-slate-800">
             ReportKit
           </Link>
-          <p className="mt-2 text-slate-600">Create your account</p>
+          <p className="mt-2 text-slate-600">Creează-ți contul</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
           {error && (
@@ -95,7 +95,7 @@ export default function SignUpPage() {
 
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1">
-              Agency / Your name
+              Agenție / Numele tău
             </label>
             <input
               id="name"
@@ -103,7 +103,7 @@ export default function SignUpPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Acme Agency"
+              placeholder="ex. Agenția Mea"
             />
           </div>
           <div>
@@ -122,7 +122,7 @@ export default function SignUpPage() {
           </div>
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">
-              Password
+              Parolă
             </label>
             <input
               id="password"
@@ -155,12 +155,12 @@ export default function SignUpPage() {
             disabled={loading}
             className="w-full py-2.5 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? 'Creating account…' : 'Start free trial'}
+            {loading ? 'Se creează contul…' : 'Începe gratuit'}
           </button>
           <p className="text-center text-sm text-slate-600">
-            Already have an account?{' '}
+            Ai deja cont?{' '}
             <Link href="/auth/signin" className="text-blue-600 hover:underline">
-              Sign in
+              Autentificare
             </Link>
           </p>
         </form>

@@ -32,7 +32,7 @@ function SignInForm() {
     });
     setLoading(false);
     if (res?.error) {
-      setError('Invalid email or password');
+      setError('Email sau parolă incorectă.');
       return;
     }
     if (res?.url) window.location.href = res.url;
@@ -45,7 +45,7 @@ function SignInForm() {
           <Link href="/" className="text-2xl font-bold text-slate-800">
             ReportKit
           </Link>
-          <p className="mt-2 text-slate-600">Sign in to your account</p>
+          <p className="mt-2 text-slate-600">Autentificare în cont</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
           {error && (
@@ -64,12 +64,12 @@ function SignInForm() {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="you@agency.com"
+              placeholder="tu@agentie.ro"
             />
           </div>
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">
-              Password
+              Parolă
             </label>
             <input
               id="password"
@@ -90,7 +90,7 @@ function SignInForm() {
             disabled={loading}
             className="w-full py-2.5 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? 'Signing in…' : 'Sign in'}
+            {loading ? 'Se conectează…' : 'Autentificare'}
           </button>
 
           <div className="relative">
@@ -117,9 +117,9 @@ function SignInForm() {
           </button>
 
           <p className="text-center text-sm text-slate-600">
-            Don&apos;t have an account?{' '}
+            Nu ai cont?{' '}
             <Link href="/auth/signup" className="text-blue-600 hover:underline">
-              Sign up
+              Înregistrare
             </Link>
           </p>
         </form>
@@ -130,7 +130,7 @@ function SignInForm() {
 
 export default function SignInPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50">Loading…</div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50">Se încarcă…</div>}>
       <SignInForm />
     </Suspense>
   );

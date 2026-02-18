@@ -127,6 +127,9 @@ export interface ReportPDFProps {
     agency_name: string;
     logo_url?: string | null;
     primary_color?: string;
+    website_url?: string | null;
+    contact_email?: string | null;
+    contact_phone?: string | null;
   };
   clientInfo: {
     client_name: string;
@@ -135,6 +138,8 @@ export interface ReportPDFProps {
   dateEnd: string;
 }
 
+const defaultBrandColor = '#3B82F6';
+
 export function ReportPDF({
   data,
   agencyInfo,
@@ -142,44 +147,52 @@ export function ReportPDF({
   dateStart,
   dateEnd,
 }: ReportPDFProps) {
+  const brandColor = agencyInfo.primary_color || defaultBrandColor;
+  const headerStyle = [styles.header, { borderBottomColor: brandColor }];
+  const footerLines: string[] = [];
+  footerLines.push(`Pregătit de ${agencyInfo.agency_name}`);
+  if (agencyInfo.website_url) footerLines.push(agencyInfo.website_url);
+  if (agencyInfo.contact_email) footerLines.push(agencyInfo.contact_email);
+  if (agencyInfo.contact_phone) footerLines.push(agencyInfo.contact_phone);
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        <View style={styles.header}>
+        <View style={headerStyle}>
           {agencyInfo.logo_url ? (
             // eslint-disable-next-line jsx-a11y/alt-text -- PDF Image has no alt prop
             <Image src={agencyInfo.logo_url} style={styles.logo} />
           ) : null}
-          <Text style={styles.title}>Marketing Performance Report</Text>
+          <Text style={styles.title}>Raport performanță marketing</Text>
           <Text style={styles.subtitle}>Client: {clientInfo.client_name}</Text>
           <Text style={styles.date}>
-            Period: {dateStart} to {dateEnd}
+            Perioadă: {dateStart} – {dateEnd}
           </Text>
         </View>
 
         {data.google ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Google Ads Performance</Text>
+            <Text style={styles.sectionTitle}>Performanță Google Ads</Text>
             <View style={styles.metricsGrid}>
-              <MetricCard label="Impressions" value={data.google.impressions.toLocaleString()} />
-              <MetricCard label="Clicks" value={data.google.clicks.toLocaleString()} />
-              <MetricCard label="Spend" value={`$${data.google.cost.toFixed(2)}`} />
+              <MetricCard label="Impresii" value={data.google.impressions.toLocaleString()} />
+              <MetricCard label="Click-uri" value={data.google.clicks.toLocaleString()} />
+              <MetricCard label="Cheltuieli" value={`$${data.google.cost.toFixed(2)}`} />
               <MetricCard label="CTR" value={`${data.google.ctr.toFixed(2)}%`} />
-              <MetricCard label="Conversions" value={data.google.conversions.toLocaleString()} />
-              <MetricCard label="Avg CPC" value={`$${data.google.avg_cpc.toFixed(2)}`} />
+              <MetricCard label="Conversii" value={data.google.conversions.toLocaleString()} />
+              <MetricCard label="CPC mediu" value={`$${data.google.avg_cpc.toFixed(2)}`} />
             </View>
           </View>
         ) : null}
 
         {data.meta ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Meta Ads Performance</Text>
+            <Text style={styles.sectionTitle}>Performanță Meta Ads</Text>
             <View style={styles.metricsGrid}>
-              <MetricCard label="Impressions" value={data.meta.impressions.toLocaleString()} />
-              <MetricCard label="Clicks" value={data.meta.clicks.toLocaleString()} />
-              <MetricCard label="Spend" value={`$${data.meta.spend.toFixed(2)}`} />
+              <MetricCard label="Impresii" value={data.meta.impressions.toLocaleString()} />
+              <MetricCard label="Click-uri" value={data.meta.clicks.toLocaleString()} />
+              <MetricCard label="Cheltuieli" value={`$${data.meta.spend.toFixed(2)}`} />
               <MetricCard label="CTR" value={`${data.meta.ctr.toFixed(2)}%`} />
-              <MetricCard label="Conversions" value={data.meta.conversions.toLocaleString()} />
+              <MetricCard label="Conversii" value={data.meta.conversions.toLocaleString()} />
               <MetricCard label="CPC" value={`$${data.meta.cpc.toFixed(2)}`} />
             </View>
           </View>
@@ -187,13 +200,15 @@ export function ReportPDF({
 
         {!data.google && !data.meta ? (
           <View style={styles.section}>
-            <Text style={styles.subtitle}>No ad platform data for this period.</Text>
+            <Text style={styles.subtitle}>Nu există date din platforme de reclame pentru această perioadă.</Text>
           </View>
         ) : null}
 
         <View style={styles.footer} fixed>
-          <Text>Generated on {new Date().toLocaleDateString()}</Text>
-          <Text>Prepared by {agencyInfo.agency_name}</Text>
+          <Text>Generat la {new Date().toLocaleDateString('ro-RO')}</Text>
+          {footerLines.map((line, i) => (
+            <Text key={i}>{line}</Text>
+          ))}
         </View>
       </Page>
     </Document>

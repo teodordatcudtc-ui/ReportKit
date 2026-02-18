@@ -113,7 +113,7 @@ function ClientDetailContent() {
     const data = await res.json().catch(() => ({}));
     setGenerating(false);
     if (!res.ok) {
-      setGenerateError(data.error ?? 'Failed to generate report');
+      setGenerateError(data.error ?? 'Nu s-a putut genera raportul.');
       return;
     }
     setPdfUrl(data.pdf_url ?? null);
@@ -130,7 +130,7 @@ function ClientDetailContent() {
   if (loading || !client) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
-        <div className="animate-pulse text-slate-500">Loading…</div>
+        <div className="animate-pulse text-slate-500">Se încarcă…</div>
       </div>
     );
   }
@@ -142,7 +142,7 @@ function ClientDetailContent() {
           href="/clients"
           className="text-slate-600 hover:text-slate-800 text-sm font-medium"
         >
-          ← Back to clients
+          ← Înapoi la clienți
         </Link>
       </div>
       <div>
@@ -151,33 +151,33 @@ function ClientDetailContent() {
 
       {success && (
         <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg text-sm">
-          {success === 'google_connected' && 'Google Ads connected successfully.'}
-          {success === 'meta_connected' && 'Meta Ads connected successfully.'}
+          {success === 'google_connected' && 'Google Ads conectat cu succes.'}
+          {success === 'meta_connected' && 'Meta Ads conectat cu succes.'}
         </div>
       )}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">
-          Connection failed. Please try again or check your app configuration.
+          Conexiune eșuată. Încearcă din nou sau verifică setările aplicației.
         </div>
       )}
 
       <section className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
-        <h2 className="font-semibold text-slate-800">Connection status</h2>
+        <h2 className="font-semibold text-slate-800">Stare conexiuni</h2>
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between py-2 border-b border-slate-100">
             <div>
               <p className="font-medium text-slate-700">Google Ads</p>
               <p className="text-sm text-slate-500">
                 {client.google_ads_connected
-                  ? `Connected${googleToken?.account_id ? ` (${googleToken.account_id})` : ''}`
-                  : 'Not connected'}
+                  ? `Conectat${googleToken?.account_id ? ` (${googleToken.account_id})` : ''}`
+                  : 'Neconectat'}
               </p>
             </div>
             {client.google_ads_connected ? (
               <form action="/api/auth/google/disconnect" method="POST" className="inline">
                 <input type="hidden" name="client_id" value={clientId} />
                 <button type="button" className="text-sm text-slate-500 hover:text-red-600">
-                  Disconnect (TODO)
+                  Deconectare (TODO)
                 </button>
               </form>
             ) : (
@@ -185,7 +185,7 @@ function ClientDetailContent() {
                 href={`/api/auth/google/connect?client_id=${clientId}`}
                 className="text-sm text-blue-600 hover:underline font-medium"
               >
-                Connect Google Ads
+                Conectează Google Ads
               </a>
             )}
           </div>
@@ -194,18 +194,18 @@ function ClientDetailContent() {
               <p className="font-medium text-slate-700">Meta Ads</p>
               <p className="text-sm text-slate-500">
                 {client.meta_ads_connected
-                  ? `Connected${metaToken?.account_id ? ` (${metaToken.account_id})` : ''}`
-                  : 'Not connected'}
+                  ? `Conectat${metaToken?.account_id ? ` (${metaToken.account_id})` : ''}`
+                  : 'Neconectat'}
               </p>
             </div>
             {client.meta_ads_connected ? (
-              <span className="text-sm text-slate-500">Disconnect (TODO)</span>
+              <span className="text-sm text-slate-500">Deconectare (TODO)</span>
             ) : (
               <a
                 href={`/api/auth/meta/connect?client_id=${clientId}`}
                 className="text-sm text-blue-600 hover:underline font-medium"
               >
-                Connect Meta Ads
+                Conectează Meta Ads
               </a>
             )}
           </div>
@@ -257,20 +257,20 @@ function ClientDetailContent() {
 
       <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between flex-wrap gap-4">
-          <h2 className="font-semibold text-slate-800">Reports history</h2>
+          <h2 className="font-semibold text-slate-800">Istoric rapoarte</h2>
           <button
             id="generate"
             onClick={() => setReportModalOpen(true)}
             disabled={!client.google_ads_connected && !client.meta_ads_connected}
             className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Generate new report
+            Generează raport nou
           </button>
         </div>
         <div className="divide-y divide-slate-100">
           {client.reports.length === 0 ? (
             <div className="px-5 py-8 text-center text-slate-500 text-sm">
-              No reports yet. Connect at least one ad platform and generate a report.
+              Niciun raport încă. Conectează cel puțin o platformă de reclame și generează un raport.
             </div>
           ) : (
             client.reports.map((r) => (
@@ -280,7 +280,7 @@ function ClientDetailContent() {
                     {r.report_date_start} – {r.report_date_end}
                   </p>
                   <p className="text-xs text-slate-500">
-                    {new Date(r.created_at).toLocaleDateString()} · {r.status}
+                    {new Date(r.created_at).toLocaleDateString('ro-RO')} · {r.status}
                   </p>
                 </div>
                 {r.pdf_url && (
@@ -290,7 +290,7 @@ function ClientDetailContent() {
                     rel="noopener noreferrer"
                     className="text-sm text-blue-600 hover:underline"
                   >
-                    Download PDF
+                    Descarcă PDF
                   </a>
                 )}
               </div>
@@ -302,13 +302,13 @@ function ClientDetailContent() {
       {reportModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-lg max-w-sm w-full p-6">
-            <h3 className="font-semibold text-slate-800">Generate report</h3>
+            <h3 className="font-semibold text-slate-800">Generează raport</h3>
             <form onSubmit={handleGenerateReport} className="mt-4 space-y-4">
               {generateError && (
                 <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{generateError}</p>
               )}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Start date</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Data start</label>
                 <input
                   type="date"
                   value={dateStart}
@@ -318,7 +318,7 @@ function ClientDetailContent() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">End date</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Data sfârșit</label>
                 <input
                   type="date"
                   value={dateEnd}
@@ -333,14 +333,14 @@ function ClientDetailContent() {
                   onClick={() => setReportModalOpen(false)}
                   className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg"
                 >
-                  Cancel
+                  Anulare
                 </button>
                 <button
                   type="submit"
                   disabled={generating}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {generating ? 'Generating…' : 'Generate report'}
+                  {generating ? 'Se generează…' : 'Generează raport'}
                 </button>
               </div>
             </form>
@@ -350,7 +350,7 @@ function ClientDetailContent() {
 
       {pdfUrl && (
         <p className="text-sm text-green-600">
-          Report ready: <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="underline">Open PDF</a>
+          Raport gata: <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="underline">Deschide PDF</a>
         </p>
       )}
     </div>
@@ -359,7 +359,7 @@ function ClientDetailContent() {
 
 export default function ClientDetailPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-[40vh]"><div className="animate-pulse text-slate-500">Loading…</div></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[40vh]"><div className="animate-pulse text-slate-500">Se încarcă…</div></div>}>
       <ClientDetailContent />
     </Suspense>
   );

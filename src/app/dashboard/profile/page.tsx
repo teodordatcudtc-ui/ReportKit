@@ -7,7 +7,7 @@ import { getPasswordIssues, PASSWORD_MIN_LENGTH } from '@/lib/security/password'
 async function readError(res: Response): Promise<string> {
   const data = await res.json().catch(() => ({}));
   if (typeof data?.error === 'string') return data.error;
-  return 'Request failed';
+  return 'Cererea a eșuat.';
 }
 
 export default function ProfilePage() {
@@ -81,7 +81,7 @@ export default function ProfilePage() {
     setErr('');
     setMsg('');
     if (passwordIssues.length > 0) {
-      setErr(`Password: ${passwordIssues[0]}`);
+      setErr(`Parolă: ${passwordIssues[0]}`);
       return;
     }
     setSavingPassword(true);
@@ -161,7 +161,7 @@ export default function ProfilePage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="you@agency.com"
+              placeholder="tu@agentie.ro"
             />
           </div>
           <div>
