@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useState } from 'react';
+import { PLANS_DISPLAY } from '@/lib/plans-data';
 
 const callbackUrl = encodeURIComponent('/#preturi');
 
@@ -39,83 +40,6 @@ function PriceDisplay({
     </span>
   );
 }
-
-const PLANS = [
-  {
-    id: 'free',
-    name: 'Free',
-    badge: null,
-    priceMonthly: 0,
-    priceAnnual: 0,
-    priceAnnualPerMonth: 0,
-    forever: true,
-    features: [
-      '1 client activ',
-      'Până la 3 rapoarte/lună',
-      'Google Ads + Meta Ads',
-      'Watermark "Powered by REPORTKIT" pe PDF',
-      'Email support (48h response)',
-    ],
-    cta: 'Începe gratuit',
-    ctaHrefSignup: true,
-  },
-  {
-    id: 'starter',
-    name: 'Starter',
-    badge: null,
-    priceMonthly: 19,
-    priceAnnual: 171,
-    priceAnnualPerMonth: 14.25,
-    forever: false,
-    features: [
-      'Până la 5 clienți activi',
-      'Rapoarte PDF nelimitate',
-      'Google Ads + Meta Ads',
-      'White-label (fără watermark)',
-      'Email support (24h response)',
-    ],
-    cta: 'Alege Starter',
-    ctaHrefSignup: false,
-  },
-  {
-    id: 'professional',
-    name: 'Professional',
-    badge: 'Cel mai popular',
-    priceMonthly: 69,
-    priceAnnual: 621,
-    priceAnnualPerMonth: 51.75,
-    forever: false,
-    features: [
-      'Până la 20 clienți activi',
-      'Rapoarte PDF nelimitate',
-      'Google Ads + Meta Ads + Google Analytics 4',
-      'Full white-label (logo + culori personalizate)',
-      'Rapoarte programate automat (trimise pe email lunar)',
-      'Priority email support (12h response)',
-    ],
-    cta: 'Alege Professional',
-    ctaHrefSignup: false,
-  },
-  {
-    id: 'agency',
-    name: 'Agency',
-    badge: null,
-    priceMonthly: 149,
-    priceAnnual: 1341,
-    priceAnnualPerMonth: 111.75,
-    forever: false,
-    features: [
-      'Clienți nelimitați',
-      'Toate platformele (Google Ads, Meta Ads, GA4, + altele când adaugi)',
-      'Full white-label + Custom domain (ex: reports.agencyname.com)',
-      'Rapoarte programate + auto-trimise pe email',
-      'Priority support (6h response) + onboarding call',
-      'Dedicated account manager',
-    ],
-    cta: 'Alege Agency',
-    ctaHrefSignup: false,
-  },
-] as const;
 
 export function PricingSection() {
   const { data: session, status } = useSession();
@@ -165,7 +89,7 @@ export function PricingSection() {
 
         {/* Cele 3 pachete pe un rând: Starter, Professional, Agency */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {PLANS.filter((p) => !p.forever).map((plan) => {
+          {PLANS_DISPLAY.filter((p) => !p.forever).map((plan) => {
             const isPopular = !!plan.badge;
             const showMonthlyPrice = billing === 'monthly';
             const annualPerMonth = plan.priceAnnualPerMonth;
@@ -208,13 +132,7 @@ export function PricingSection() {
                   ))}
                 </ul>
                 <Link
-                  href={
-                    isLoggedIn
-                      ? plan.ctaHrefSignup
-                        ? '/auth/signup'
-                        : `/dashboard/plan${plan.forever ? '' : `?plan=${plan.id}`}`
-                      : ctaSignin
-                  }
+                  href={isLoggedIn ? `/dashboard/plan?plan=${plan.id}` : ctaSignin}
                   className={`mt-auto w-full inline-flex justify-center py-3 px-4 rounded-rk text-sm font-semibold transition-colors ${
                     isPopular
                       ? 'bg-blue-700 text-white shadow-[0_1px_2px_rgba(30,64,175,.2)] hover:bg-blue-600'
@@ -230,7 +148,7 @@ export function PricingSection() {
 
         {/* Pachetul Free sub cele 3 */}
         {(() => {
-          const plan = PLANS.find((p) => p.forever)!;
+          const plan = PLANS_DISPLAY.find((p) => p.forever)!;
           return (
             <div className="mt-8 flex justify-center">
               <div className="bg-white border-[1.5px] border-slate-200 rounded-rk-xl p-6 flex flex-col md:flex-row md:items-center md:gap-10 w-full max-w-[640px]">

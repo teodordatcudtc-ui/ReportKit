@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getPlanLimit } from '@/lib/plans';
+import { ReportPreview } from '@/components/ReportPreview';
 
 interface Agency {
   id: string;
@@ -194,15 +195,16 @@ export default function AgencySettingsPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">Setări agenție (white-label)</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Logo-ul, culorile și datele de contact vor apărea pe rapoartele PDF generate, ca și cum ar fi emise în totalitate de agenția ta.
-        </p>
-      </div>
+    <div className="grid grid-cols-1 xl:grid-cols-[1fr_minmax(420px,560px)] gap-8 items-start xl:pr-24">
+      <div className="space-y-6 max-w-2xl">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Setări agenție (white-label)</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Logo-ul, culorile și datele de contact vor apărea pe rapoartele PDF generate, ca și cum ar fi emise în totalitate de agenția ta.
+          </p>
+        </div>
 
-      {(error || message) && (
+        {(error || message) && (
         <div
           className={`text-sm p-3 rounded-lg border ${
             error ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'
@@ -403,6 +405,18 @@ export default function AgencySettingsPage() {
           </button>
         </div>
       </form>
+      </div>
+
+      <div className="xl:sticky xl:top-6">
+        <ReportPreview
+          agency_name={agencyName}
+          primary_color={primaryColor}
+          logo_url={agency.logo_url}
+          website_url={websiteUrl}
+          contact_email={contactEmail}
+          contact_phone={contactPhone}
+        />
+      </div>
     </div>
   );
 }
