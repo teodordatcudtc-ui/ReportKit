@@ -279,54 +279,62 @@ export function ReportPDF({
               {showG('ctr') && <MetricCard label="CTR" value={`${g.ctr.toFixed(2)}%`} />}
               {showG('conversions') && <MetricCard label="Conversii" value={g.conversions.toLocaleString()} />}
               {showG('avg_cpc') && <MetricCard label="CPC mediu" value={`$${g.avg_cpc.toFixed(2)}`} />}
-              {showG('quality_score') && g.quality_score != null && (
-                <MetricCard label="Quality Score" value={g.quality_score.toFixed(1)} />
+              {showG('quality_score') && (
+                <MetricCard label="Quality Score" value={g.quality_score != null ? g.quality_score.toFixed(1) : '–'} />
               )}
-              {showG('impression_share') && g.impression_share != null && (
-                <MetricCard label="Impression Share" value={`${(g.impression_share * 100).toFixed(1)}%`} />
+              {showG('impression_share') && (
+                <MetricCard label="Impression Share" value={g.impression_share != null ? `${(g.impression_share * 100).toFixed(1)}%` : '–'} />
               )}
-              {showG('search_impression_share') && g.search_impression_share != null && (
-                <MetricCard label="Search Imp. Share" value={`${(g.search_impression_share * 100).toFixed(1)}%`} />
+              {showG('search_impression_share') && (
+                <MetricCard label="Search Imp. Share" value={g.search_impression_share != null ? `${(g.search_impression_share * 100).toFixed(1)}%` : '–'} />
               )}
-              {showG('top_of_page_rate') && g.top_of_page_rate != null && (
-                <MetricCard label="Top of page rate" value={`${(g.top_of_page_rate * 100).toFixed(1)}%`} />
+              {showG('top_of_page_rate') && (
+                <MetricCard label="Top of page rate" value={g.top_of_page_rate != null ? `${(g.top_of_page_rate * 100).toFixed(1)}%` : '–'} />
               )}
             </View>
-            {showC('device_breakdown') && googleDeviceBreakdown && googleDeviceBreakdown.length > 0 && (
+            {showC('device_breakdown') && (
               <View style={{ marginTop: 8 }}>
                 <Text style={[styles.sectionTitle, { fontSize: 10, marginBottom: 6 }]}>
                   {stripDiacritics('Performanta pe device')}
                 </Text>
-                {googleDeviceBreakdown.slice(0, 5).map((row) => (
-                  <View key={row.device} style={styles.chartRow}>
-                    <Text style={styles.chartLabel}>{row.device}</Text>
-                    <View style={[styles.chartBar, { flex: 1 }]}>
-                      <View
-                        style={[
-                          styles.chartBarFill,
-                          {
-                            width: `${Math.round((row.impressions / maxDeviceImpr) * 100)}%`,
-                            backgroundColor: brandColor,
-                          },
-                        ]}
-                      />
+                {googleDeviceBreakdown && googleDeviceBreakdown.length > 0 ? (
+                  googleDeviceBreakdown.slice(0, 5).map((row) => (
+                    <View key={row.device} style={styles.chartRow}>
+                      <Text style={styles.chartLabel}>{row.device}</Text>
+                      <View style={[styles.chartBar, { flex: 1 }]}>
+                        <View
+                          style={[
+                            styles.chartBarFill,
+                            {
+                              width: `${Math.round((row.impressions / maxDeviceImpr) * 100)}%`,
+                              backgroundColor: brandColor,
+                            },
+                          ]}
+                        />
+                      </View>
+                      <Text style={{ fontSize: 8 }}>{row.impressions.toLocaleString()}</Text>
                     </View>
-                    <Text style={{ fontSize: 8 }}>{row.impressions.toLocaleString()}</Text>
-                  </View>
-                ))}
+                  ))
+                ) : (
+                  <Text style={{ fontSize: 9, color: '#64748b' }}>{stripDiacritics('Nu exista date pe device pentru aceasta perioada.')}</Text>
+                )}
               </View>
             )}
-            {showG('geographic_performance') && googleGeographicBreakdown && googleGeographicBreakdown.length > 0 && (
+            {showG('geographic_performance') && (
               <View style={{ marginTop: 8 }}>
                 <Text style={[styles.sectionTitle, { fontSize: 10, marginBottom: 6 }]}>
                   {stripDiacritics('Top geografic')}
                 </Text>
-                {googleGeographicBreakdown.slice(0, 5).map((row) => (
-                  <View key={row.country} style={styles.chartRow}>
-                    <Text style={styles.chartLabel}>{row.country}</Text>
-                    <Text style={{ fontSize: 8 }}>{row.impressions.toLocaleString()} impresii</Text>
-                  </View>
-                ))}
+                {googleGeographicBreakdown && googleGeographicBreakdown.length > 0 ? (
+                  googleGeographicBreakdown.slice(0, 5).map((row) => (
+                    <View key={row.country} style={styles.chartRow}>
+                      <Text style={styles.chartLabel}>{row.country}</Text>
+                      <Text style={{ fontSize: 8 }}>{row.impressions.toLocaleString()} impresii</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={{ fontSize: 9, color: '#64748b' }}>{stripDiacritics('Nu exista date geografice pentru aceasta perioada.')}</Text>
+                )}
               </View>
             )}
           </View>
@@ -342,28 +350,20 @@ export function ReportPDF({
               {showM('ctr') && <MetricCard label="CTR" value={`${m.ctr.toFixed(2)}%`} />}
               {showM('conversions') && <MetricCard label="Conversii" value={m.conversions.toLocaleString()} />}
               {showM('cpc') && <MetricCard label="CPC" value={`$${m.cpc.toFixed(2)}`} />}
-              {showM('reach') && m.reach != null && <MetricCard label="Reach" value={m.reach.toLocaleString()} />}
-              {showM('frequency') && m.frequency != null && (
-                <MetricCard label="Frecventa" value={m.frequency.toFixed(2)} />
-              )}
-              {showM('link_clicks') && m.link_clicks != null && (
-                <MetricCard label="Link clicks" value={m.link_clicks.toLocaleString()} />
-              )}
-              {showM('cpm') && m.cpm != null && <MetricCard label="CPM" value={`$${m.cpm.toFixed(2)}`} />}
-              {showM('engagement_rate') && m.engagement_rate != null && (
-                <MetricCard label="Engagement rate" value={`${m.engagement_rate.toFixed(2)}%`} />
-              )}
-              {showM('video_views') && m.video_views != null && (
-                <MetricCard label="Vizionari video" value={m.video_views.toLocaleString()} />
-              )}
+              {showM('reach') && <MetricCard label="Reach" value={m.reach != null ? m.reach.toLocaleString() : '–'} />}
+              {showM('frequency') && <MetricCard label="Frecventa" value={m.frequency != null ? m.frequency.toFixed(2) : '–'} />}
+              {showM('link_clicks') && <MetricCard label="Link clicks" value={m.link_clicks != null ? m.link_clicks.toLocaleString() : '–'} />}
+              {showM('cpm') && <MetricCard label="CPM" value={m.cpm != null ? `$${m.cpm.toFixed(2)}` : '–'} />}
+              {showM('engagement_rate') && <MetricCard label="Engagement rate" value={m.engagement_rate != null ? `${m.engagement_rate.toFixed(2)}%` : '–'} />}
+              {showM('video_views') && <MetricCard label="Vizionari video" value={m.video_views != null ? m.video_views.toLocaleString() : '–'} />}
             </View>
           </View>
         ) : null}
 
-        {showC('performance_trend') && dailyTrend && dailyTrend.length > 0 && (
+        {showC('performance_trend') && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{stripDiacritics('Evolutie cheltuieli (pe zi)')}</Text>
-            {dailyTrend.slice(-14).map((row) => (
+            {dailyTrend && dailyTrend.length > 0 ? dailyTrend.slice(-14).map((row) => (
               <View key={row.date} style={styles.chartRow}>
                 <Text style={styles.chartLabel}>{row.date}</Text>
                 <View style={[styles.chartBar, { flex: 1 }]}>
@@ -379,7 +379,9 @@ export function ReportPDF({
                 </View>
                 <Text style={{ fontSize: 8 }}>${row.spend.toFixed(0)}</Text>
               </View>
-            ))}
+            )) : (
+              <Text style={{ fontSize: 9, color: '#64748b' }}>{stripDiacritics('Nu exista date zilnice pentru aceasta perioada.')}</Text>
+            )}
           </View>
         )}
 
