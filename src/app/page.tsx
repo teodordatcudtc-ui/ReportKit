@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { PublicFooter } from '@/components/PublicFooter';
 import { PublicHeader } from '@/components/PublicHeader';
+import { PricingSection } from '@/components/PricingSection';
 
 export default function HomePage() {
   return (
@@ -195,74 +196,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Pricing */}
-      <section id="preturi" className="py-20 md:py-24 px-6 md:px-10 bg-slate-50 border-t border-slate-200 scroll-mt-20">
-        <div className="max-w-[880px] mx-auto">
-          <div className="text-xs font-semibold tracking-[0.12em] uppercase text-blue-700 text-center mb-3">Prețuri</div>
-          <h2 className="font-display text-3xl md:text-[32px] text-slate-900 text-center mb-3">
-            Simplu. <span className="italic text-blue-700">Transparent.</span>
-          </h2>
-          <p className="text-base text-slate-600 text-center max-w-[460px] mx-auto mb-14">
-            Fără contracte pe termen lung. Anulezi oricând.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div className="bg-white border-[1.5px] border-slate-200 rounded-rk-xl p-8 flex flex-col gap-6">
-              <div>
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Starter</div>
-                <div className="font-display text-4xl text-slate-900 mt-2">€0 <span className="font-sans text-sm text-slate-500 font-normal">/lună</span></div>
-              </div>
-              <ul className="space-y-3">
-                {['3 clienți activi', '2 integrări', 'Export PDF', 'Suport email'].map((x) => (
-                  <li key={x} className="flex items-center gap-2.5 text-sm text-slate-700">
-                    <span className="w-5 h-5 rounded-full bg-[#ECFDF5] text-rk-green flex items-center justify-center text-xs font-extrabold flex-shrink-0">✓</span>
-                    {x}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/auth/signup" className="mt-auto w-full inline-flex justify-center py-3 px-4 bg-white border-[1.5px] border-slate-200 rounded-rk text-sm font-semibold text-slate-900 shadow-rk hover:border-slate-400 hover:bg-slate-50 transition-colors">
-                Începe gratuit
-              </Link>
-            </div>
-            <div className="bg-white border-2 border-blue-700 rounded-rk-xl p-8 flex flex-col gap-6 shadow-[0_0_0_3px_rgba(30,64,175,.1)] relative">
-              <div className="absolute top-6 right-6">
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#EFF6FF] text-blue-700">Popular</span>
-              </div>
-              <div>
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Pro</div>
-                <div className="font-display text-4xl text-slate-900 mt-2">€49 <span className="font-sans text-sm text-slate-500 font-normal">/lună</span></div>
-              </div>
-              <ul className="space-y-3">
-                {['Clienți nelimitați', 'Toate integrările', 'Export PDF + PPTX', 'Trimitere automată', 'White-label branding', 'Support prioritar'].map((x) => (
-                  <li key={x} className="flex items-center gap-2.5 text-sm text-slate-700">
-                    <span className="w-5 h-5 rounded-full bg-[#ECFDF5] text-rk-green flex items-center justify-center text-xs font-extrabold flex-shrink-0">✓</span>
-                    {x}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/auth/signup" className="mt-auto w-full inline-flex justify-center py-3 px-4 bg-blue-700 text-white rounded-rk text-sm font-semibold shadow-[0_1px_2px_rgba(30,64,175,.2)] hover:bg-blue-500 transition-colors">
-                Încearcă 14 zile gratis
-              </Link>
-            </div>
-            <div className="bg-white border-[1.5px] border-slate-200 rounded-rk-xl p-8 flex flex-col gap-6">
-              <div>
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Agenție</div>
-                <div className="font-display text-4xl text-slate-900 mt-2">€129 <span className="font-sans text-sm text-slate-500 font-normal">/lună</span></div>
-              </div>
-              <ul className="space-y-3">
-                {['Totul din Pro', 'Multi-utilizator (5 conturi)', 'API access', 'Onboarding dedicat'].map((x) => (
-                  <li key={x} className="flex items-center gap-2.5 text-sm text-slate-700">
-                    <span className="w-5 h-5 rounded-full bg-[#ECFDF5] text-rk-green flex items-center justify-center text-xs font-extrabold flex-shrink-0">✓</span>
-                    {x}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/auth/signup" className="mt-auto w-full inline-flex justify-center py-3 px-4 bg-white border-[1.5px] border-slate-200 rounded-rk text-sm font-semibold text-slate-900 shadow-rk hover:border-slate-400 hover:bg-slate-50 transition-colors">
-                Contactează-ne
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Pricing – doar utilizatorii autentificați pot alege un pachet; neautentificații sunt trimiși la login */}
+      <PricingSection />
 
       {/* Contact */}
       <section id="contact" className="py-20 md:py-24 px-6 md:px-10 bg-white border-t border-slate-200 scroll-mt-20">

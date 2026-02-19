@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { getPlanLimit } from '@/lib/plans';
 
 interface Agency {
   id: string;
@@ -10,6 +11,22 @@ interface Agency {
   website_url: string | null;
   contact_email: string | null;
   contact_phone: string | null;
+  plan?: string | null;
+}
+
+interface ScheduledRow {
+  id: string;
+  client_id: string;
+  client_name: string;
+  send_to_email: string;
+  from_email: string | null;
+  next_send_at: string;
+  last_sent_at: string | null;
+}
+
+interface Client {
+  id: string;
+  client_name: string;
 }
 
 export default function AgencySettingsPage() {
@@ -25,6 +42,13 @@ export default function AgencySettingsPage() {
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
+  const [scheduled, setScheduled] = useState<ScheduledRow[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [scheduleClientId, setScheduleClientId] = useState('');
+  const [scheduleFromEmail, setScheduleFromEmail] = useState('');
+  const [scheduleToEmail, setScheduleToEmail] = useState('');
+  const [addingSchedule, setAddingSchedule] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   function load() {
     setLoading(true);
@@ -44,9 +68,28 @@ export default function AgencySettingsPage() {
       .catch(() => setLoading(false));
   }
 
+  function loadScheduled() {
+    fetch('/api/scheduled-reports')
+      .then((r) => (r.ok ? r.json() : { scheduled: [] }))
+      .then((data) => setScheduled(data.scheduled ?? []));
+  }
+
+  function loadClients() {
+    fetch('/api/clients')
+      .then((r) => (r.ok ? r.json() : { clients: [] }))
+      .then((data) => setClients(data.clients ?? []));
+  }
+
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    if (agency && getPlanLimit(agency.plan).scheduledEmail) {
+      loadScheduled();
+      loadClients();
+    }
+  }, [agency]);
 
   async function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -100,6 +143,40 @@ export default function AgencySettingsPage() {
     setMessage('Setări salvate. Rapoartele generate vor afișa branding-ul agenției tale.');
   }
 
+  async function handleAddSchedule(e: React.FormEvent) {
+    e.preventDefault();
+    if (!scheduleClientId || !scheduleToEmail.trim()) return;
+    setError('');
+    setAddingSchedule(true);
+    const res = await fetch('/api/scheduled-reports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: scheduleClientId,
+        send_to_email: scheduleToEmail.trim(),
+        from_email: scheduleFromEmail.trim() || undefined,
+      }),
+    });
+    setAddingSchedule(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? 'Nu s-a putut adăuga programarea.');
+      return;
+    }
+    setScheduleClientId('');
+    setScheduleFromEmail('');
+    setScheduleToEmail('');
+    loadScheduled();
+    setMessage('Programare adăugată. Raportul va fi trimis lunar pe email (fără configurare SMTP).');
+  }
+
+  async function handleDeleteSchedule(id: string) {
+    setDeletingId(id);
+    await fetch(`/api/scheduled-reports?id=${id}`, { method: 'DELETE' });
+    setDeletingId(null);
+    loadScheduled();
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
@@ -143,7 +220,8 @@ export default function AgencySettingsPage() {
             <label className="block text-sm font-medium text-slate-700 mb-1">Logo agenție</label>
             <div className="flex flex-wrap items-center gap-4">
               {agency.logo_url && (
-                <div className="w-32 h-12 border border-slate-200 rounded-lg overflow-hidden bg-white flex items-center justify-center p-1">
+                <div className="w-32 h-12 border border-slate-200 rounded-lg overflow-hidden bg-white flex items-center justify-center p-1 relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- URL dinamic din Supabase storage */}
                   <img src={agency.logo_url} alt="Logo agenție" className="max-h-full max-w-full object-contain" />
                 </div>
               )}
@@ -240,6 +318,80 @@ export default function AgencySettingsPage() {
             />
           </div>
         </section>
+
+        {getPlanLimit(agency.plan).scheduledEmail && (
+          <section className="bg-white border border-slate-200 rounded-rk-lg shadow-rk p-5 space-y-4">
+            <h2 className="text-base font-semibold text-slate-900">Rapoarte programate (trimise lunar pe email)</h2>
+            <p className="text-xs text-slate-500">
+              Completezi doar emailul de la care trimiti si emailul catre care trimiti. Fara configurare SMTP.
+            </p>
+            <ul className="space-y-2">
+              {scheduled.map((s) => (
+                <li key={s.id} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+                  <span className="text-sm">
+                    {s.client_name}: {s.from_email ? `${s.from_email} → ` : ''}{s.send_to_email}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteSchedule(s.id)}
+                    disabled={deletingId === s.id}
+                    className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                  >
+                    {deletingId === s.id ? 'Se sterge…' : 'Sterge'}
+                  </button>
+                </li>
+              ))}
+              {scheduled.length === 0 && (
+                <li className="text-sm text-slate-500">Nicio programare. Adauga mai jos.</li>
+              )}
+            </ul>
+            <form onSubmit={handleAddSchedule} className="space-y-3">
+              <div className="flex flex-wrap gap-3 items-end">
+                <div>
+                  <label className="block text-xs text-slate-600 mb-0.5">Client</label>
+                  <select
+                    value={scheduleClientId}
+                    onChange={(e) => setScheduleClientId(e.target.value)}
+                    className="px-3 py-2 border border-slate-300 rounded-lg text-sm min-w-[160px]"
+                  >
+                    <option value="">Alege client</option>
+                    {clients.map((c) => (
+                      <option key={c.id} value={c.id}>{c.client_name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-600 mb-0.5">De la (emailul tau)</label>
+                  <input
+                    type="email"
+                    value={scheduleFromEmail}
+                    onChange={(e) => setScheduleFromEmail(e.target.value)}
+                    placeholder="tu@agentia.ro"
+                    className="px-3 py-2 border border-slate-300 rounded-lg text-sm min-w-[200px]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-600 mb-0.5">Catre (email destinatar)</label>
+                  <input
+                    type="email"
+                    value={scheduleToEmail}
+                    onChange={(e) => setScheduleToEmail(e.target.value)}
+                    placeholder="client@email.ro"
+                    className="px-3 py-2 border border-slate-300 rounded-lg text-sm min-w-[200px]"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={addingSchedule || !scheduleClientId || !scheduleToEmail.trim()}
+                  className="px-4 py-2 bg-slate-100 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                >
+                  {addingSchedule ? 'Se adauga…' : 'Programeaza'}
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
 
         <div className="flex justify-end">
           <button

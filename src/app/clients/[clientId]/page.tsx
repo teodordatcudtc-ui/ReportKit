@@ -33,6 +33,12 @@ function ClientDetailContent() {
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState('');
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [sendReportId, setSendReportId] = useState<string | null>(null);
+  const [sendToEmail, setSendToEmail] = useState('');
+  const [sendFromEmail, setSendFromEmail] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState('');
+  const [sendSuccess, setSendSuccess] = useState(false);
   const [metricsRange, setMetricsRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
   const [metrics, setMetrics] = useState<{ google?: PlatformMetrics; meta?: PlatformMetrics } | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
@@ -96,6 +102,35 @@ function ClientDetailContent() {
     setDateStart(firstDay.toISOString().slice(0, 10));
     setDateEnd(lastDay.toISOString().slice(0, 10));
   }, []);
+
+  async function handleSendReport(e: React.FormEvent) {
+    e.preventDefault();
+    if (!sendReportId || !sendToEmail.trim()) return;
+    setSendError('');
+    setSending(true);
+    const res = await fetch('/api/reports/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        report_id: sendReportId,
+        to_email: sendToEmail.trim(),
+        from_email: sendFromEmail.trim() || undefined,
+      }),
+    });
+    setSending(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setSendError(data.error ?? 'Trimitere esuata.');
+      return;
+    }
+    setSendSuccess(true);
+    setTimeout(() => {
+      setSendReportId(null);
+      setSendToEmail('');
+      setSendFromEmail('');
+      setSendSuccess(false);
+    }, 2000);
+  }
 
   async function handleGenerateReport(e: React.FormEvent) {
     e.preventDefault();
@@ -274,7 +309,7 @@ function ClientDetailContent() {
             </div>
           ) : (
             client.reports.map((r) => (
-              <div key={r.id} className="px-5 py-3 flex items-center justify-between gap-4">
+              <div key={r.id} className="px-5 py-3 flex items-center justify-between gap-4 flex-wrap">
                 <div>
                   <p className="font-medium text-slate-800">
                     {r.report_date_start} – {r.report_date_end}
@@ -283,16 +318,33 @@ function ClientDetailContent() {
                     {new Date(r.created_at).toLocaleDateString('ro-RO')} · {r.status}
                   </p>
                 </div>
-                {r.pdf_url && (
-                  <a
-                    href={r.pdf_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:underline"
-                  >
-                    Descarcă PDF
-                  </a>
-                )}
+                <div className="flex items-center gap-2">
+                  {r.pdf_url && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSendReportId(r.id);
+                          setSendToEmail('');
+                          setSendFromEmail('');
+                          setSendError('');
+                          setSendSuccess(false);
+                        }}
+                        className="text-sm text-blue-600 hover:underline font-medium"
+                      >
+                        Trimite raport
+                      </button>
+                      <a
+                        href={r.pdf_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-slate-600 hover:underline"
+                      >
+                        Descarcă PDF
+                      </a>
+                    </>
+                  )}
+                </div>
               </div>
             ))
           )}
@@ -352,6 +404,60 @@ function ClientDetailContent() {
         <p className="text-sm text-green-600">
           Raport gata: <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="underline">Deschide PDF</a>
         </p>
+      )}
+
+      {sendReportId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg max-w-sm w-full p-6">
+            <h3 className="font-semibold text-slate-800">Trimite raport pe email</h3>
+            <p className="text-sm text-slate-500 mt-1">Raportul va fi trimis la adresa indicata mai jos.</p>
+            <form onSubmit={handleSendReport} className="mt-4 space-y-4">
+              {sendError && (
+                <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{sendError}</p>
+              )}
+              {sendSuccess && (
+                <p className="text-sm text-green-600 bg-green-50 p-2 rounded">Raport trimis cu succes.</p>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Trimite la (email destinatar) *</label>
+                <input
+                  type="email"
+                  value={sendToEmail}
+                  onChange={(e) => setSendToEmail(e.target.value)}
+                  placeholder="client@email.ro"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">De la (emailul tau, optional – Reply-To)</label>
+                <input
+                  type="email"
+                  value={sendFromEmail}
+                  onChange={(e) => setSendFromEmail(e.target.value)}
+                  placeholder="tu@agentia.ro"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => { setSendReportId(null); setSendError(''); }}
+                  className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg"
+                >
+                  Anulare
+                </button>
+                <button
+                  type="submit"
+                  disabled={sending || !sendToEmail.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {sending ? 'Se trimite…' : 'Trimite'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

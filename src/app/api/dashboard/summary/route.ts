@@ -15,25 +15,6 @@ function getMonthRange(): { start: string; end: string } {
   };
 }
 
-/** Demo date pentru preview când nu există date reale */
-function getDemoSummary() {
-  return {
-    totals: { spend: 12450, impressions: 89200, conversions: 318 },
-    topClientsBySpend: [
-      { client_id: 'demo-1', client_name: 'Client Premium SRL', spend: 5200 },
-      { client_id: 'demo-2', client_name: 'Brand Digital', spend: 3100 },
-      { client_id: 'demo-3', client_name: 'Shop Online', spend: 2150 },
-      { client_id: 'demo-4', client_name: 'Startup XYZ', spend: 1200 },
-      { client_id: 'demo-5', client_name: 'Local Business', spend: 800 },
-    ],
-    clientsWithoutReport: [
-      { client_id: 'demo-a', client_name: 'Client fără raport 1' },
-      { client_id: 'demo-b', client_name: 'Client fără raport 2' },
-    ],
-    isDemo: true,
-  };
-}
-
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -42,22 +23,26 @@ export async function GET(req: Request) {
   const dateStart = searchParams.get('date_start') || getMonthRange().start;
   const dateEnd = searchParams.get('date_end') || getMonthRange().end;
 
+  const emptySummary = {
+    totals: { spend: 0, impressions: 0, conversions: 0 },
+    topClientsBySpend: [] as { client_id: string; client_name: string; spend: number }[],
+    clientsWithoutReport: [] as { client_id: string; client_name: string }[],
+    date_start: dateStart,
+    date_end: dateEnd,
+  };
+
   const { data: agency } = await getSupabaseAdmin()
     .from('agencies')
     .select('id')
     .eq('user_id', session.user.id)
     .single();
-  if (!agency) {
-    return NextResponse.json({ ...getDemoSummary(), date_start: dateStart, date_end: dateEnd });
-  }
+  if (!agency) return NextResponse.json(emptySummary);
 
   const { data: clients } = await getSupabaseAdmin()
     .from('clients')
     .select('id, client_name')
     .eq('agency_id', agency.id);
-  if (!clients?.length) {
-    return NextResponse.json({ ...getDemoSummary(), date_start: dateStart, date_end: dateEnd });
-  }
+  if (!clients?.length) return NextResponse.json(emptySummary);
 
   const clientIds = clients.map((c) => c.id);
   const { data: tokens } = await getSupabaseAdmin()
@@ -111,27 +96,29 @@ export async function GET(req: Request) {
     .slice(0, 5)
     .filter((c) => c.spend > 0);
 
+  // Rapoarte care se suprapun cu perioada [dateStart, dateEnd]: report_date_start <= dateEnd ȘI report_date_end >= dateStart
   const { data: reportsInPeriod } = await getSupabaseAdmin()
     .from('reports')
-    .select('client_id')
+    .select('client_id, report_date_start, report_date_end')
     .in('client_id', clientIds)
-    .eq('status', 'completed')
-    .lte('report_date_start', dateEnd)
-    .gte('report_date_end', dateStart);
-  const reportedIds = new Set((reportsInPeriod ?? []).map((r) => r.client_id));
+    .eq('status', 'completed');
+  const allReports = reportsInPeriod ?? [];
+  const reportedIds = new Set<string>();
+  for (const r of allReports) {
+    const start = (r as { report_date_start?: string }).report_date_start ?? '';
+    const end = (r as { report_date_end?: string }).report_date_end ?? '';
+    const overlaps = start <= dateEnd && end >= dateStart;
+    if (overlaps) reportedIds.add((r as { client_id: string }).client_id);
+  }
   const clientsWithoutReport = clients
     .filter((c) => !reportedIds.has(c.id))
     .map((c) => ({ client_id: c.id, client_name: c.client_name }));
 
-  const hasRealData = totals.spend > 0 || totals.impressions > 0 || totals.conversions > 0;
-  const body = {
+  return NextResponse.json({
     totals: { spend: Math.round(totals.spend * 100) / 100, impressions: totals.impressions, conversions: totals.conversions },
-    topClientsBySpend: topClientsBySpend.length ? topClientsBySpend : getDemoSummary().topClientsBySpend,
-    clientsWithoutReport: clientsWithoutReport.length ? clientsWithoutReport : getDemoSummary().clientsWithoutReport,
-    isDemo: !hasRealData,
+    topClientsBySpend,
+    clientsWithoutReport,
     date_start: dateStart,
     date_end: dateEnd,
-  };
-
-  return NextResponse.json(body);
+  });
 }

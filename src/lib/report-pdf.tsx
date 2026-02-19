@@ -8,6 +8,17 @@ import {
   Image,
 } from '@react-pdf/renderer';
 
+/** Elimina diacriticele din text ca sa apara corect in PDF (fontul nu afiseaza diacritice). */
+function stripDiacritics(s: string): string {
+  const map: Record<string, string> = {
+    ă: 'a', â: 'a', î: 'i', ș: 's', ț: 't',
+    Ă: 'A', Â: 'A', Î: 'I', Ș: 'S', Ț: 'T',
+  };
+  let out = s;
+  for (const [d, r] of Object.entries(map)) out = out.split(d).join(r);
+  return out.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 const styles = StyleSheet.create({
   page: {
     padding: 40,
@@ -150,10 +161,13 @@ export function ReportPDF({
   const brandColor = agencyInfo.primary_color || defaultBrandColor;
   const headerStyle = [styles.header, { borderBottomColor: brandColor }];
   const footerLines: string[] = [];
-  footerLines.push(`Pregătit de ${agencyInfo.agency_name}`);
+  footerLines.push(stripDiacritics(`Pregatit de ${agencyInfo.agency_name}`));
   if (agencyInfo.website_url) footerLines.push(agencyInfo.website_url);
   if (agencyInfo.contact_email) footerLines.push(agencyInfo.contact_email);
   if (agencyInfo.contact_phone) footerLines.push(agencyInfo.contact_phone);
+
+  const clientName = stripDiacritics(clientInfo.client_name);
+  const generatedDate = stripDiacritics(new Date().toLocaleDateString('ro-RO'));
 
   return (
     <Document>
@@ -163,16 +177,16 @@ export function ReportPDF({
             // eslint-disable-next-line jsx-a11y/alt-text -- PDF Image has no alt prop
             <Image src={agencyInfo.logo_url} style={styles.logo} />
           ) : null}
-          <Text style={styles.title}>Raport performanță marketing</Text>
-          <Text style={styles.subtitle}>Client: {clientInfo.client_name}</Text>
+          <Text style={styles.title}>{stripDiacritics('Raport performanta marketing')}</Text>
+          <Text style={styles.subtitle}>Client: {clientName}</Text>
           <Text style={styles.date}>
-            Perioadă: {dateStart} – {dateEnd}
+            {stripDiacritics('Perioada')}: {dateStart} – {dateEnd}
           </Text>
         </View>
 
         {data.google ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Performanță Google Ads</Text>
+            <Text style={styles.sectionTitle}>{stripDiacritics('Performanta Google Ads')}</Text>
             <View style={styles.metricsGrid}>
               <MetricCard label="Impresii" value={data.google.impressions.toLocaleString()} />
               <MetricCard label="Click-uri" value={data.google.clicks.toLocaleString()} />
@@ -186,7 +200,7 @@ export function ReportPDF({
 
         {data.meta ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Performanță Meta Ads</Text>
+            <Text style={styles.sectionTitle}>{stripDiacritics('Performanta Meta Ads')}</Text>
             <View style={styles.metricsGrid}>
               <MetricCard label="Impresii" value={data.meta.impressions.toLocaleString()} />
               <MetricCard label="Click-uri" value={data.meta.clicks.toLocaleString()} />
@@ -200,12 +214,14 @@ export function ReportPDF({
 
         {!data.google && !data.meta ? (
           <View style={styles.section}>
-            <Text style={styles.subtitle}>Nu există date din platforme de reclame pentru această perioadă.</Text>
+            <Text style={styles.subtitle}>
+              {stripDiacritics('Nu exista date din platforme de reclame pentru aceasta perioada.')}
+            </Text>
           </View>
         ) : null}
 
         <View style={styles.footer} fixed>
-          <Text>Generat la {new Date().toLocaleDateString('ro-RO')}</Text>
+          <Text>{stripDiacritics('Generat la')} {generatedDate}</Text>
           {footerLines.map((line, i) => (
             <Text key={i}>{line}</Text>
           ))}

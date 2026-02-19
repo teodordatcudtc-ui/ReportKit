@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { isValidPlan } from '@/lib/plans';
 
 const createSchema = z.object({
   agency_name: z.string().min(1).optional(),
@@ -11,6 +12,12 @@ const createSchema = z.object({
   website_url: z.string().url().nullable().optional(),
   contact_email: z.string().email().nullable().optional(),
   contact_phone: z.string().max(32).nullable().optional(),
+  plan: z.enum(['free', 'starter', 'professional', 'agency']).optional(),
+  smtp_host: z.string().max(256).nullable().optional(),
+  smtp_port: z.number().int().min(1).max(65535).nullable().optional(),
+  smtp_user: z.string().max(256).nullable().optional(),
+  smtp_pass: z.string().max(512).nullable().optional(),
+  smtp_from_email: z.string().email().max(256).nullable().optional(),
 });
 
 export async function GET() {
@@ -56,6 +63,12 @@ export async function POST(req: Request) {
   if (parsed.data.website_url !== undefined) updates.website_url = parsed.data.website_url;
   if (parsed.data.contact_email !== undefined) updates.contact_email = parsed.data.contact_email;
   if (parsed.data.contact_phone !== undefined) updates.contact_phone = parsed.data.contact_phone;
+  if (parsed.data.plan !== undefined && isValidPlan(parsed.data.plan)) updates.plan = parsed.data.plan;
+  if (parsed.data.smtp_host !== undefined) updates.smtp_host = parsed.data.smtp_host;
+  if (parsed.data.smtp_port !== undefined) updates.smtp_port = parsed.data.smtp_port;
+  if (parsed.data.smtp_user !== undefined) updates.smtp_user = parsed.data.smtp_user;
+  if (parsed.data.smtp_pass !== undefined) updates.smtp_pass = parsed.data.smtp_pass;
+  if (parsed.data.smtp_from_email !== undefined) updates.smtp_from_email = parsed.data.smtp_from_email;
 
   if (existing) {
     const { data, error } = await getSupabaseAdmin()

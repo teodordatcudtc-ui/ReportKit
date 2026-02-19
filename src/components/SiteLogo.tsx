@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 
 type SiteLogoSize = 'default' | 'compact' | 'small';
@@ -49,10 +50,13 @@ export function SiteLogo({ size = 'default' }: { size?: SiteLogoSize }) {
     );
   }
 
+  const sizePx = size === 'default' ? 240 : size === 'compact' ? 192 : 56;
   return (
-    <img
+    <Image
       src={src}
       alt=""
+      width={sizePx}
+      height={sizePx}
       role="presentation"
       className={`${classes} object-contain flex-shrink-0`}
       onError={() => setFailedSrc(src)}

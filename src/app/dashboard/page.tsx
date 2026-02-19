@@ -3,10 +3,12 @@
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { getPlanLimit } from '@/lib/plans';
 
 interface Agency {
   id: string;
   agency_name: string;
+  plan?: string | null;
 }
 interface ReportRow {
   id: string;
@@ -26,7 +28,6 @@ interface SummaryData {
   totals: { spend: number; impressions: number; conversions: number };
   topClientsBySpend: { client_id: string; client_name: string; spend: number }[];
   clientsWithoutReport: { client_id: string; client_name: string }[];
-  isDemo?: boolean;
   date_start: string;
   date_end: string;
 }
@@ -103,7 +104,21 @@ export default function DashboardPage() {
           {getGreeting()}, {name} 👋
         </h1>
         <p className="text-sm text-slate-500 mt-1.5 capitalize">
-          {dateStr} · {reports.length} rapoarte în listă
+          {dateStr}
+          {agency?.plan && (
+            <>
+              {' · '}
+              Plan {agency.plan.charAt(0).toUpperCase() + agency.plan.slice(1)}
+              {(() => {
+                const limits = getPlanLimit(agency.plan);
+                if (limits.maxClients === Infinity) return ` · ${clients.length} clienti`;
+                return ` · ${clients.length}/${limits.maxClients} clienti`;
+              })()}
+              {' · '}
+              <Link href="/dashboard/plan" className="text-blue-600 hover:underline">Schimbă plan</Link>
+            </>
+          )}
+          {' · '}{reports.length} rapoarte în listă
         </p>
       </div>
 
@@ -135,10 +150,7 @@ export default function DashboardPage() {
               );
             })}
           </select>
-          {summary?.isDemo && (
-            <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded">Date demo</span>
-          )}
-        </div>
+          </div>
       </div>
 
       {/* Total cheltuieli / impresii / conversii */}
@@ -192,7 +204,7 @@ export default function DashboardPage() {
               {summary.topClientsBySpend.map((c, i) => (
                 <li key={c.client_id} className="px-5 py-3 flex items-center justify-between gap-3">
                   <span className="text-slate-400 font-mono text-sm w-6">{i + 1}.</span>
-                  <Link href={c.client_id.startsWith('demo') ? '/clients' : `/clients/${c.client_id}`} className="flex-1 text-sm font-medium text-slate-800 hover:text-blue-700 truncate">
+                  <Link href={`/clients/${c.client_id}`} className="flex-1 text-sm font-medium text-slate-800 hover:text-blue-700 truncate">
                     {c.client_name}
                   </Link>
                   <span className="text-sm font-semibold text-slate-900 whitespace-nowrap">
@@ -214,13 +226,13 @@ export default function DashboardPage() {
                 summary.clientsWithoutReport.map((c) => (
                   <li key={c.client_id} className="px-5 py-3 flex items-center justify-between gap-3">
                     <Link
-                      href={c.client_id.startsWith('demo') ? '/clients' : `/clients/${c.client_id}`}
+                      href={`/clients/${c.client_id}`}
                       className="text-sm font-medium text-slate-800 hover:text-blue-700 truncate"
                     >
                       {c.client_name}
                     </Link>
                     <Link
-                      href={c.client_id.startsWith('demo') ? '/clients' : `/clients/${c.client_id}#generate`}
+                      href={`/clients/${c.client_id}#generate`}
                       className="text-xs font-semibold text-blue-700 hover:underline"
                     >
                       Generează raport

@@ -3,15 +3,8 @@ import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { z } from 'zod';
-import React from 'react';
-import { renderToBuffer } from '@react-pdf/renderer';
-import {
-  ReportPDF,
-  type GoogleMetrics,
-  type MetaMetrics,
-} from '@/lib/report-pdf';
-import { getValidAccessToken, fetchGoogleAdsData } from '@/lib/google-ads';
-import { fetchMetaAdsData } from '@/lib/meta-ads';
+import { getPlanLimit } from '@/lib/plans';
+import { generateReportPdfBuffer } from '@/lib/report-pdf-generator';
 
 const bodySchema = z.object({
   client_id: z.string().uuid(),
@@ -19,20 +12,20 @@ const bodySchema = z.object({
   date_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
-async function canAccessClient(userId: string, clientId: string): Promise<boolean> {
+async function canAccessClient(userId: string, clientId: string): Promise<{ agencyId: string; plan: string | null } | null> {
   const { data: agency } = await getSupabaseAdmin()
     .from('agencies')
-    .select('id')
+    .select('id, plan')
     .eq('user_id', userId)
     .single();
-  if (!agency) return false;
+  if (!agency) return null;
   const { data: client } = await getSupabaseAdmin()
     .from('clients')
     .select('id')
     .eq('id', clientId)
     .eq('agency_id', agency.id)
     .single();
-  return !!client;
+  return client ? { agencyId: agency.id, plan: agency.plan ?? null } : null;
 }
 
 export async function POST(req: Request) {
@@ -46,104 +39,49 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
   const { client_id, date_start, date_end } = parsed.data;
-  if (!(await canAccessClient(session.user.id, client_id))) {
+  const access = await canAccessClient(session.user.id, client_id);
+  if (!access) {
     return NextResponse.json({ error: 'Client not found' }, { status: 404 });
   }
 
-  const { data: client } = await getSupabaseAdmin()
-    .from('clients')
-    .select('client_name')
-    .eq('id', client_id)
-    .single();
-  if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
-
-  let agency: { agency_name: string; logo_url: string | null; primary_color: string; website_url?: string | null; contact_email?: string | null; contact_phone?: string | null };
-  const { data: agencyFull, error: agencyErr } = await getSupabaseAdmin()
-    .from('agencies')
-    .select('agency_name, logo_url, primary_color, website_url, contact_email, contact_phone')
-    .eq('user_id', session.user.id)
-    .single();
-  if (agencyErr) {
-    const { data: agencyBase } = await getSupabaseAdmin()
-      .from('agencies')
-      .select('agency_name, logo_url, primary_color')
-      .eq('user_id', session.user.id)
-      .single();
-    if (!agencyBase) return NextResponse.json({ error: 'Agency not found' }, { status: 400 });
-    agency = { ...agencyBase, website_url: null, contact_email: null, contact_phone: null };
-  } else if (agencyFull) {
-    agency = agencyFull as typeof agency;
-  } else {
-    return NextResponse.json({ error: 'Agency not found' }, { status: 400 });
-  }
-
-  const { data: tokens } = await getSupabaseAdmin()
-    .from('api_tokens')
-    .select('*')
-    .eq('client_id', client_id);
-  const googleToken = (tokens ?? []).find((t) => t.platform === 'google_ads');
-  const metaToken = (tokens ?? []).find((t) => t.platform === 'meta_ads');
-
-  const reportData: { google?: GoogleMetrics; meta?: MetaMetrics } = {};
-
-  if (googleToken?.access_token && googleToken?.account_id) {
-    let accessToken = googleToken.access_token;
-    if (googleToken.refresh_token) {
-      try {
-        accessToken = await getValidAccessToken(
-          googleToken.access_token,
-          googleToken.refresh_token
-        );
-      } catch {}
+  const limits = getPlanLimit(access.plan);
+  if (limits.maxReportsPerMonth !== Infinity) {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+    const { data: clientIds } = await getSupabaseAdmin()
+      .from('clients')
+      .select('id')
+      .eq('agency_id', access.agencyId);
+    const ids = (clientIds ?? []).map((c) => c.id);
+    const { count } = ids.length
+      ? await getSupabaseAdmin()
+          .from('reports')
+          .select('id', { count: 'exact', head: true })
+          .in('client_id', ids)
+          .gte('created_at', monthStart)
+          .lte('created_at', monthEnd + 'T23:59:59.999Z')
+      : { count: 0 };
+    if ((count ?? 0) >= limits.maxReportsPerMonth) {
+      return NextResponse.json(
+        { error: `Limita planului Free: maxim ${limits.maxReportsPerMonth} rapoarte/luna. Fa upgrade pentru mai multe.` },
+        { status: 403 }
+      );
     }
-    const googleMetrics = await fetchGoogleAdsData(
-      googleToken.account_id,
-      accessToken,
-      date_start,
-      date_end
-    );
-    reportData.google = {
-      impressions: googleMetrics.impressions,
-      clicks: googleMetrics.clicks,
-      cost: googleMetrics.cost_micros / 1_000_000,
-      ctr: googleMetrics.ctr,
-      conversions: googleMetrics.conversions,
-      avg_cpc: googleMetrics.average_cpc / 1_000_000,
-    };
   }
 
-  if (metaToken?.access_token && metaToken?.account_id) {
-    const metaMetrics = await fetchMetaAdsData(
-      metaToken.account_id,
-      metaToken.access_token,
-      date_start,
-      date_end
-    );
-    reportData.meta = {
-      impressions: metaMetrics.impressions,
-      clicks: metaMetrics.clicks,
-      spend: metaMetrics.spend,
-      ctr: metaMetrics.ctr,
-      conversions: metaMetrics.conversions,
-      cpc: metaMetrics.cpc,
-    };
-  }
-
-  const pdfElement = React.createElement(ReportPDF, {
-    data: reportData,
-    agencyInfo: agency,
-    clientInfo: client,
-    dateStart: date_start,
-    dateEnd: date_end,
-  });
   let pdfBuffer: Buffer;
   try {
-    // ReportPDF renders <Document> at root; renderToBuffer expects DocumentProps at type level
-    const buf = await renderToBuffer(pdfElement as Parameters<typeof renderToBuffer>[0]);
-    pdfBuffer = Buffer.isBuffer(buf) ? buf : Buffer.from(buf);
+    const result = await generateReportPdfBuffer(getSupabaseAdmin(), {
+      agencyId: access.agencyId,
+      clientId: client_id,
+      dateStart: date_start,
+      dateEnd: date_end,
+    });
+    pdfBuffer = result.buffer;
   } catch (e) {
-    console.error('PDF render error:', e);
-    return NextResponse.json({ error: 'Failed to generate PDF' }, { status: 500 });
+    console.error('PDF generate error:', e);
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed to generate PDF' }, { status: 500 });
   }
 
   const fileName = `${client_id}_${date_start}_${date_end}.pdf`;
