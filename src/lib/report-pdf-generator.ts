@@ -13,7 +13,7 @@ export async function generateReportPdfBuffer(
 
   const { data: client, error: clientErr } = await supabase
     .from('clients')
-    .select('client_name')
+    .select('client_name, google_ads_connected, meta_ads_connected')
     .eq('id', clientId)
     .eq('agency_id', agencyId)
     .single();
@@ -32,26 +32,48 @@ export async function generateReportPdfBuffer(
 
   const reportData: { google?: GoogleMetrics; meta?: MetaMetrics } = {};
 
-  const canFetchGoogle =
-    googleToken?.access_token &&
-    (googleToken?.account_id || process.env.GOOGLE_ADS_MOCK_DATA === 'true');
-  if (canFetchGoogle) {
-    let accessToken = googleToken.access_token;
-    if (googleToken.refresh_token) {
-      try {
-        accessToken = await getValidAccessToken(googleToken.access_token, googleToken.refresh_token);
-      } catch {}
+  const zeroGoogleAdsRaw = {
+    impressions: 0,
+    clicks: 0,
+    cost_micros: 0,
+    conversions: 0,
+    ctr: 0,
+    average_cpc: 0,
+  };
+
+  if (client.google_ads_connected && googleToken?.access_token) {
+    const canFetchGoogle =
+      googleToken.account_id || process.env.GOOGLE_ADS_MOCK_DATA === 'true';
+    let googleMetrics = zeroGoogleAdsRaw;
+    try {
+      let accessToken = googleToken.access_token;
+      if (googleToken.refresh_token) {
+        try {
+          accessToken = await getValidAccessToken(googleToken.access_token, googleToken.refresh_token);
+        } catch {}
+      }
+      const customerId = googleToken.account_id || '0';
+      if (canFetchGoogle) {
+        googleMetrics = await fetchGoogleAdsData(customerId, accessToken, dateStart, dateEnd);
+      }
+      reportData.google = {
+        impressions: googleMetrics.impressions,
+        clicks: googleMetrics.clicks,
+        cost: googleMetrics.cost_micros / 1_000_000,
+        ctr: googleMetrics.ctr,
+        conversions: googleMetrics.conversions,
+        avg_cpc: googleMetrics.average_cpc / 1_000_000,
+      };
+    } catch {
+      reportData.google = {
+        impressions: 0,
+        clicks: 0,
+        cost: 0,
+        ctr: 0,
+        conversions: 0,
+        avg_cpc: 0,
+      };
     }
-    const customerId = googleToken.account_id || '0';
-    const googleMetrics = await fetchGoogleAdsData(customerId, accessToken, dateStart, dateEnd);
-    reportData.google = {
-      impressions: googleMetrics.impressions,
-      clicks: googleMetrics.clicks,
-      cost: googleMetrics.cost_micros / 1_000_000,
-      ctr: googleMetrics.ctr,
-      conversions: googleMetrics.conversions,
-      avg_cpc: googleMetrics.average_cpc / 1_000_000,
-    };
   }
 
   if (metaToken?.access_token && metaToken?.account_id) {

@@ -187,7 +187,9 @@ function ClientDetailContent() {
       {success && (
         <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg text-sm">
           {success === 'google_connected' && 'Google Ads conectat cu succes.'}
+          {success === 'google_disconnected' && 'Google Ads deconectat.'}
           {success === 'meta_connected' && 'Meta Ads conectat cu succes.'}
+          {success === 'meta_disconnected' && 'Meta Ads deconectat.'}
         </div>
       )}
       {error && (
@@ -211,8 +213,8 @@ function ClientDetailContent() {
             {client.google_ads_connected ? (
               <form action="/api/auth/google/disconnect" method="POST" className="inline">
                 <input type="hidden" name="client_id" value={clientId} />
-                <button type="button" className="text-sm text-slate-500 hover:text-red-600">
-                  Deconectare (TODO)
+                <button type="submit" className="text-sm text-slate-500 hover:text-red-600 font-medium">
+                  Deconectare
                 </button>
               </form>
             ) : (
@@ -234,7 +236,12 @@ function ClientDetailContent() {
               </p>
             </div>
             {client.meta_ads_connected ? (
-              <span className="text-sm text-slate-500">Deconectare (TODO)</span>
+              <form action="/api/auth/meta/disconnect" method="POST" className="inline">
+                <input type="hidden" name="client_id" value={clientId} />
+                <button type="submit" className="text-sm text-slate-500 hover:text-red-600 font-medium">
+                  Deconectare
+                </button>
+              </form>
             ) : (
               <a
                 href={`/api/auth/meta/connect?client_id=${clientId}`}
