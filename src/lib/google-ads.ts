@@ -25,12 +25,51 @@ export interface GoogleAdsMetrics {
   average_cpc: number;
 }
 
+/** Date mock pentru testare când nu ai campanii reale. Setează GOOGLE_ADS_MOCK_DATA=true în .env.local */
+function getMockGoogleAdsMetrics(dateStart: string, dateEnd: string): GoogleAdsMetrics {
+  const days = Math.max(1, Math.ceil((new Date(dateEnd).getTime() - new Date(dateStart).getTime()) / 86400000));
+  const impressions = 12000 * days;
+  const clicks = 340 * days;
+  const costMicros = 85_000_000 * days; // 85 RON
+  const conversions = 12 * days;
+  return {
+    impressions,
+    clicks,
+    cost_micros: costMicros,
+    conversions,
+    ctr: clicks / impressions,
+    average_cpc: costMicros / clicks,
+  };
+}
+
+/** Zile mock pentru grafice (folosit doar când GOOGLE_ADS_MOCK_DATA=true) */
+function getMockGoogleAdsDaily(dateStart: string, dateEnd: string): GoogleAdsDailyRow[] {
+  const rows: GoogleAdsDailyRow[] = [];
+  const start = new Date(dateStart);
+  const end = new Date(dateEnd);
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const date = d.toISOString().slice(0, 10);
+    const variance = 0.7 + Math.random() * 0.6;
+    rows.push({
+      date,
+      impressions: Math.round(12000 * variance),
+      clicks: Math.round(340 * variance),
+      cost_micros: Math.round(85_000_000 * variance),
+      conversions: Math.round(12 * variance),
+    });
+  }
+  return rows;
+}
+
 export async function fetchGoogleAdsData(
   customerId: string,
   accessToken: string,
   dateStart: string,
   dateEnd: string
 ): Promise<GoogleAdsMetrics> {
+  if (process.env.GOOGLE_ADS_MOCK_DATA === 'true') {
+    return getMockGoogleAdsMetrics(dateStart, dateEnd);
+  }
   const devToken = process.env.GOOGLE_DEVELOPER_TOKEN;
   if (!devToken) {
     return {
@@ -129,6 +168,9 @@ export async function fetchGoogleAdsDaily(
   dateStart: string,
   dateEnd: string
 ): Promise<GoogleAdsDailyRow[]> {
+  if (process.env.GOOGLE_ADS_MOCK_DATA === 'true') {
+    return getMockGoogleAdsDaily(dateStart, dateEnd);
+  }
   const devToken = process.env.GOOGLE_DEVELOPER_TOKEN;
   if (!devToken) return [];
   const query = `

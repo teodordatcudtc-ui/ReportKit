@@ -43,6 +43,13 @@ SaaS MVP pentru generarea de rapoarte de marketing pentru agenții: conectezi Go
 2. **Dashboard** → Adaugi clienți, vezi rapoarte recente.
 3. **Client** → Conectezi Google Ads și/ sau Meta Ads (OAuth), generezi raport (interval de date) → download PDF.
 
+## Testare fără date reale (Google Ads)
+
+Dacă contul Google Ads nu are campanii sau cheltuieli în perioada aleasă, aplicația afișează „Contul este conectat corect. Nu există campanii...” – deci API-ul răspunde, doar că datele sunt goale. Pentru a verifica **graficele și PDF-ul** cu numere (fără campanii reale), poți folosi date mock:
+
+- În `.env.local` adaugă: `GOOGLE_ADS_MOCK_DATA=true`
+- Repornește dev server-ul; pentru clienții cu Google Ads conectat, metricile și graficele vor folosi valori de test. **Nu seta această variabilă pe Vercel/production** – e doar pentru development.
+
 ## API relevante
 
 - `POST /api/auth/signup` – înregistrare
@@ -52,8 +59,11 @@ SaaS MVP pentru generarea de rapoarte de marketing pentru agenții: conectezi Go
 
 ## Deployment (Vercel)
 
-- Conectezi repo-ul la Vercel, setezi env vars (inclusiv `NEXTAUTH_URL` = domeniul tău).
-- În Google Cloud și Meta adaugi redirect URI-urile de production (ex: `https://tudomeniu.com/api/auth/google/callback`).
+- Conectezi repo-ul la Vercel, setezi env vars (inclusiv `NEXTAUTH_URL` = URL-ul aplicației, ex: `https://rapoarte-marketing.vercel.app`).
+- **Google OAuth:** în Google Cloud Console → Credentials → OAuth 2.0 Client (Web) → la **Authorized redirect URIs** adaugi:
+  - `https://<domeniul-tau>/api/auth/google/callback`  
+  (ex: `https://rapoarte-marketing.vercel.app/api/auth/google/callback`). Fără acest URI primești `redirect_uri_mismatch` în production.
+- **Meta:** la fel, adaugi redirect URI-ul de production în Meta for Developers.
 
 ## Cost MVP
 
