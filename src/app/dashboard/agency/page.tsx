@@ -514,6 +514,7 @@ export default function AgencySettingsPage() {
           website_url={websiteUrl}
           contact_email={contactEmail}
           contact_phone={contactPhone}
+          reportSettings={reportSettings}
         />
       </div>
     </div>

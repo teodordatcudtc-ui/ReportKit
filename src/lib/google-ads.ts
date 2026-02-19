@@ -107,6 +107,7 @@ export async function fetchGoogleAdsData(
       average_cpc: 0,
     };
   }
+  /* Toate metricile exista in Google Ads API la campaign: impressions, clicks, cost_micros, conversions, ctr, average_cpc, search_impression_share, search_top_impression_share. Nu exista metrics.impression_share generic la campaign – folosim search_impression_share pentru campanii Search. */
   const query = `
     SELECT
       metrics.impressions,
@@ -115,7 +116,6 @@ export async function fetchGoogleAdsData(
       metrics.conversions,
       metrics.ctr,
       metrics.average_cpc,
-      metrics.impression_share,
       metrics.search_impression_share,
       metrics.search_top_impression_share
     FROM campaign
@@ -151,7 +151,6 @@ export async function fetchGoogleAdsData(
       conversions?: string;
       ctr?: string;
       averageCpc?: string;
-      impressionShare?: string;
       searchImpressionShare?: string;
       searchTopImpressionShare?: string;
     };
@@ -164,7 +163,6 @@ export async function fetchGoogleAdsData(
     conversions = 0,
     ctr = 0,
     averageCpc = 0,
-    impressionShareSum = 0,
     searchImpressionShareSum = 0,
     searchTopSum = 0,
     shareCount = 0;
@@ -177,15 +175,11 @@ export async function fetchGoogleAdsData(
       conversions += Number(m.conversions ?? 0);
       ctr += Number(m.ctr ?? 0);
       averageCpc += Number(m.averageCpc ?? 0);
-      const isVal = Number(m.impressionShare ?? 0);
       const sisVal = Number(m.searchImpressionShare ?? 0);
       const stVal = Number(m.searchTopImpressionShare ?? 0);
-      if (!Number.isNaN(isVal) && isVal > 0) {
-        impressionShareSum += isVal;
-        shareCount++;
-      }
       if (!Number.isNaN(sisVal) && sisVal > 0) {
         searchImpressionShareSum += sisVal;
+        shareCount++;
       }
       if (!Number.isNaN(stVal) && stVal > 0) {
         searchTopSum += stVal;
@@ -202,7 +196,7 @@ export async function fetchGoogleAdsData(
     average_cpc: count > 0 ? averageCpc / count : 0,
   };
   if (shareCount > 0) {
-    out.impression_share = impressionShareSum / shareCount;
+    out.impression_share = searchImpressionShareSum / shareCount;
     out.search_impression_share = searchImpressionShareSum / shareCount;
     out.top_of_page_rate = searchTopSum / shareCount;
   }
@@ -284,7 +278,7 @@ export async function fetchGoogleAdsDaily(
   return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-/** Quality Score mediu (din keyword); revine null dacă nu e disponibil. */
+/** Quality Score mediu (din keyword_view, ad_group_criterion.quality_info.quality_score). Revine null dacă nu e disponibil. */
 export async function fetchGoogleAdsQualityScore(
   customerId: string,
   accessToken: string,
@@ -295,9 +289,10 @@ export async function fetchGoogleAdsQualityScore(
   const devToken = process.env.GOOGLE_DEVELOPER_TOKEN;
   if (!devToken) return null;
   const query = `
-    SELECT metrics.quality_score.quality_score
+    SELECT ad_group_criterion.quality_info.quality_score
     FROM keyword_view
     WHERE segments.date BETWEEN '${dateStart}' AND '${dateEnd}'
+      AND ad_group_criterion.type = 'KEYWORD'
   `;
   const url = `https://googleads.googleapis.com/v16/customers/${customerId}/googleAds:search`;
   const res = await fetch(url, {
@@ -310,12 +305,13 @@ export async function fetchGoogleAdsQualityScore(
     body: JSON.stringify({ query }),
   });
   if (!res.ok) return null;
-  const data = (await res.json()) as { results?: Array<{ metrics?: { qualityScore?: { qualityScore?: string } } }> };
+  type Row = { adGroupCriterion?: { qualityInfo?: { qualityScore?: number } } };
+  const data = (await res.json()) as { results?: Row[] };
   const results = data.results ?? [];
   let sum = 0;
   let n = 0;
   for (const row of results) {
-    const q = Number(row.metrics?.qualityScore?.qualityScore ?? 0);
+    const q = Number(row.adGroupCriterion?.qualityInfo?.qualityScore ?? 0);
     if (!Number.isNaN(q) && q > 0) {
       sum += q;
       n++;
