@@ -116,8 +116,19 @@ export function getDefaultReportSettings(): ReportSettings {
 }
 
 export function normalizeReportSettings(raw: unknown): ReportSettings {
-  if (!raw || typeof raw !== 'object') return getDefaultReportSettings();
-  const o = raw as Record<string, unknown>;
+  if (raw == null) return getDefaultReportSettings();
+  let o: Record<string, unknown>;
+  if (typeof raw === 'string') {
+    try {
+      o = (JSON.parse(raw) as Record<string, unknown>) ?? {};
+    } catch {
+      return getDefaultReportSettings();
+    }
+  } else if (typeof raw === 'object' && raw !== null) {
+    o = raw as Record<string, unknown>;
+  } else {
+    return getDefaultReportSettings();
+  }
   const google =
     o.google && typeof o.google === 'object'
       ? { ...defaultGoogle, ...(o.google as Record<string, boolean>) }
