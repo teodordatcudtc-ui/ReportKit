@@ -42,9 +42,15 @@ export async function GET(req: Request) {
   }
 
   let customerId: string | null = null;
+  const devToken = process.env.GOOGLE_DEVELOPER_TOKEN;
   try {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${tokens.access_token}`,
+    };
+    if (devToken) headers['developer-token'] = devToken;
     const res = await fetch('https://googleads.googleapis.com/v16/customers:listAccessibleCustomers', {
-      headers: { Authorization: `Bearer ${tokens.access_token}` },
+      method: 'GET',
+      headers,
     });
     const data = (await res.json()) as { resourceNames?: string[] };
     const ids = data?.resourceNames ?? [];

@@ -62,15 +62,19 @@ export async function GET(req: Request) {
       impressions = 0,
       conversions = 0;
 
-    if (googleToken?.access_token && googleToken?.account_id) {
+    const canFetchGoogle =
+      googleToken?.access_token &&
+      (googleToken?.account_id || process.env.GOOGLE_ADS_MOCK_DATA === 'true');
+    if (canFetchGoogle) {
       let accessToken = googleToken.access_token;
       if (googleToken.refresh_token) {
         try {
           accessToken = await getValidAccessToken(googleToken.access_token, googleToken.refresh_token);
         } catch {}
       }
+      const customerId = googleToken.account_id || '0';
       try {
-        const data = await fetchGoogleAdsData(googleToken.account_id, accessToken, dateStart, dateEnd);
+        const data = await fetchGoogleAdsData(customerId, accessToken, dateStart, dateEnd);
         spend += data.cost_micros / 1_000_000;
         impressions += data.impressions;
         conversions += data.conversions;

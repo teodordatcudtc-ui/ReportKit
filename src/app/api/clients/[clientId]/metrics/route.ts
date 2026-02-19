@@ -58,16 +58,20 @@ export async function GET(
     };
   } = {};
 
-  if (googleToken?.access_token && googleToken?.account_id) {
+  const canFetchGoogle =
+    googleToken?.access_token &&
+    (googleToken?.account_id || process.env.GOOGLE_ADS_MOCK_DATA === 'true');
+  if (canFetchGoogle) {
     let accessToken = googleToken.access_token;
     if (googleToken.refresh_token) {
       try {
         accessToken = await getValidAccessToken(googleToken.access_token, googleToken.refresh_token);
       } catch {}
     }
+    const customerId = googleToken.account_id || '0';
     const [totalsData, dailyRows] = await Promise.all([
-      fetchGoogleAdsData(googleToken.account_id, accessToken, dateStart, dateEnd),
-      fetchGoogleAdsDaily(googleToken.account_id, accessToken, dateStart, dateEnd),
+      fetchGoogleAdsData(customerId, accessToken, dateStart, dateEnd),
+      fetchGoogleAdsDaily(customerId, accessToken, dateStart, dateEnd),
     ]);
     result.google = {
       totals: {

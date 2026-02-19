@@ -32,14 +32,18 @@ export async function generateReportPdfBuffer(
 
   const reportData: { google?: GoogleMetrics; meta?: MetaMetrics } = {};
 
-  if (googleToken?.access_token && googleToken?.account_id) {
+  const canFetchGoogle =
+    googleToken?.access_token &&
+    (googleToken?.account_id || process.env.GOOGLE_ADS_MOCK_DATA === 'true');
+  if (canFetchGoogle) {
     let accessToken = googleToken.access_token;
     if (googleToken.refresh_token) {
       try {
         accessToken = await getValidAccessToken(googleToken.access_token, googleToken.refresh_token);
       } catch {}
     }
-    const googleMetrics = await fetchGoogleAdsData(googleToken.account_id, accessToken, dateStart, dateEnd);
+    const customerId = googleToken.account_id || '0';
+    const googleMetrics = await fetchGoogleAdsData(customerId, accessToken, dateStart, dateEnd);
     reportData.google = {
       impressions: googleMetrics.impressions,
       clicks: googleMetrics.clicks,
