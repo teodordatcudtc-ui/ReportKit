@@ -5,6 +5,18 @@ export interface MetaAdsMetrics {
   ctr: number;
   conversions: number;
   cpc: number;
+  /** Reach (persoane unice) */
+  reach?: number;
+  /** Frecvență medie */
+  frequency?: number;
+  /** Link clicks (doar click-uri pe link) */
+  link_clicks?: number;
+  /** Cost per 1000 impresii (CPM) */
+  cpm?: number;
+  /** Engagement rate (%) */
+  engagement_rate?: number;
+  /** Video views (25% sau 3s) */
+  video_views?: number;
 }
 
 export async function fetchMetaAdsData(
@@ -15,7 +27,7 @@ export async function fetchMetaAdsData(
 ): Promise<MetaAdsMetrics> {
   const accountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
   const fields =
-    'impressions,clicks,spend,ctr,actions,cpc';
+    'impressions,clicks,spend,ctr,actions,cpc,reach,frequency,cpm,action_values';
   const url = `https://graph.facebook.com/v21.0/${accountId}/insights?fields=${fields}&time_range=${JSON.stringify({
     since: dateStart,
     until: dateEnd,
@@ -29,6 +41,9 @@ export async function fetchMetaAdsData(
         spend?: string;
         ctr?: string;
         cpc?: string;
+        reach?: string;
+        frequency?: string;
+        cpm?: string;
         actions?: Array<{ action_type: string; value: string }>;
       }>;
       error?: { message: string };
@@ -43,26 +58,46 @@ export async function fetchMetaAdsData(
       spend = 0,
       ctr = 0,
       cpc = 0,
-      conversions = 0;
+      conversions = 0,
+      reach = 0,
+      frequency = 0,
+      cpm = 0,
+      linkClicks = 0,
+      engagement = 0,
+      videoViews = 0;
     for (const row of rows) {
       impressions += Number(row.impressions ?? 0);
       clicks += Number(row.clicks ?? 0);
       spend += Number(row.spend ?? 0);
       ctr += Number(row.ctr ?? 0);
       cpc += Number(row.cpc ?? 0);
+      reach += Number(row.reach ?? 0);
+      frequency += Number(row.frequency ?? 0);
+      cpm += Number(row.cpm ?? 0);
       const actions = row.actions ?? [];
       for (const a of actions) {
+        const val = Number(a.value ?? 0);
         if (
           a.action_type === 'purchase' ||
           a.action_type === 'lead' ||
           a.action_type === 'omni_purchase'
         ) {
-          conversions += Number(a.value ?? 0);
+          conversions += val;
+        } else if (a.action_type === 'link_click') {
+          linkClicks += val;
+        } else if (a.action_type === 'post_engagement') {
+          engagement += val;
+        } else if (
+          a.action_type === 'video_view' ||
+          a.action_type === 'video_view_15s' ||
+          a.action_type === 'video_view_3s'
+        ) {
+          videoViews += val;
         }
       }
     }
     const n = rows.length || 1;
-    return {
+    const out: MetaAdsMetrics = {
       impressions,
       clicks,
       spend,
@@ -70,6 +105,15 @@ export async function fetchMetaAdsData(
       conversions,
       cpc: n > 0 ? cpc / n : 0,
     };
+    if (reach > 0) out.reach = reach;
+    if (frequency > 0) out.frequency = frequency / n;
+    if (cpm > 0) out.cpm = cpm / n;
+    if (linkClicks > 0) out.link_clicks = linkClicks;
+    if (engagement > 0 || videoViews > 0) {
+      out.engagement_rate = impressions > 0 ? ((engagement + videoViews) / impressions) * 100 : 0;
+      out.video_views = videoViews;
+    }
+    return out;
   } catch (e) {
     console.error('Meta Ads fetch error:', e);
     return defaultMetaMetrics();

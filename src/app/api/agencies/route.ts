@@ -4,6 +4,13 @@ import { authOptions } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { isValidPlan } from '@/lib/plans';
+import type { ReportSettings } from '@/lib/report-settings';
+
+const reportSettingsSchema = z.object({
+  google: z.record(z.string(), z.boolean()).optional(),
+  meta: z.record(z.string(), z.boolean()).optional(),
+  charts: z.record(z.string(), z.boolean()).optional(),
+});
 
 const createSchema = z.object({
   agency_name: z.string().min(1).optional(),
@@ -13,6 +20,7 @@ const createSchema = z.object({
   contact_email: z.string().email().nullable().optional(),
   contact_phone: z.string().max(32).nullable().optional(),
   plan: z.enum(['free', 'starter', 'professional', 'agency']).optional(),
+  report_settings: reportSettingsSchema.optional(),
   smtp_host: z.string().max(256).nullable().optional(),
   smtp_port: z.number().int().min(1).max(65535).nullable().optional(),
   smtp_user: z.string().max(256).nullable().optional(),
@@ -69,6 +77,9 @@ export async function POST(req: Request) {
   if (parsed.data.smtp_user !== undefined) updates.smtp_user = parsed.data.smtp_user;
   if (parsed.data.smtp_pass !== undefined) updates.smtp_pass = parsed.data.smtp_pass;
   if (parsed.data.smtp_from_email !== undefined) updates.smtp_from_email = parsed.data.smtp_from_email;
+  if (parsed.data.report_settings !== undefined) {
+    updates.report_settings = parsed.data.report_settings as ReportSettings;
+  }
 
   if (existing) {
     const { data, error } = await getSupabaseAdmin()

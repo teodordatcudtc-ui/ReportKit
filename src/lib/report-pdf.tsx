@@ -83,6 +83,28 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#0f172a',
   },
+  chartBar: {
+    height: 8,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 2,
+    marginBottom: 4,
+  },
+  chartBarFill: {
+    height: 8,
+    borderRadius: 2,
+    backgroundColor: '#3B82F6',
+  },
+  chartRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    gap: 8,
+  },
+  chartLabel: {
+    fontSize: 8,
+    width: 50,
+    color: '#475569',
+  },
   footer: {
     position: 'absolute',
     bottom: 30,
@@ -118,6 +140,10 @@ export interface GoogleMetrics {
   ctr: number;
   conversions: number;
   avg_cpc: number;
+  quality_score?: number | null;
+  impression_share?: number | null;
+  search_impression_share?: number | null;
+  top_of_page_rate?: number | null;
 }
 
 export interface MetaMetrics {
@@ -127,6 +153,38 @@ export interface MetaMetrics {
   ctr: number;
   conversions: number;
   cpc: number;
+  reach?: number;
+  frequency?: number;
+  link_clicks?: number;
+  cpm?: number;
+  engagement_rate?: number;
+  video_views?: number;
+}
+
+export interface DeviceRow {
+  device: string;
+  impressions: number;
+  clicks: number;
+  cost_micros: number;
+}
+
+export interface GeographicRow {
+  country: string;
+  impressions: number;
+  clicks: number;
+  cost_micros: number;
+}
+
+export interface DailyTrendRow {
+  date: string;
+  impressions: number;
+  spend: number;
+}
+
+export interface ReportSettings {
+  google?: Partial<Record<string, boolean>>;
+  meta?: Partial<Record<string, boolean>>;
+  charts?: Partial<Record<string, boolean>>;
 }
 
 export interface ReportPDFProps {
@@ -134,6 +192,10 @@ export interface ReportPDFProps {
     google?: GoogleMetrics;
     meta?: MetaMetrics;
   };
+  reportSettings?: ReportSettings | null;
+  googleDeviceBreakdown?: DeviceRow[];
+  googleGeographicBreakdown?: GeographicRow[];
+  dailyTrend?: DailyTrendRow[];
   agencyInfo: {
     agency_name: string;
     logo_url?: string | null;
@@ -151,8 +213,18 @@ export interface ReportPDFProps {
 
 const defaultBrandColor = '#3B82F6';
 
+function showKey(settings: ReportSettings | null | undefined, platform: 'google' | 'meta' | 'charts', key: string): boolean {
+  if (!settings) return true;
+  const section = platform === 'google' ? settings.google : platform === 'meta' ? settings.meta : settings.charts;
+  return section?.[key] !== false;
+}
+
 export function ReportPDF({
   data,
+  reportSettings,
+  googleDeviceBreakdown,
+  googleGeographicBreakdown,
+  dailyTrend,
   agencyInfo,
   clientInfo,
   dateStart,
@@ -169,6 +241,19 @@ export function ReportPDF({
   const clientName = stripDiacritics(clientInfo.client_name);
   const generatedDate = stripDiacritics(new Date().toLocaleDateString('ro-RO'));
 
+  const g = data.google;
+  const m = data.meta;
+  const showG = (k: string) => showKey(reportSettings, 'google', k);
+  const showM = (k: string) => showKey(reportSettings, 'meta', k);
+  const showC = (k: string) => showKey(reportSettings, 'charts', k);
+
+  const maxDeviceImpr = googleDeviceBreakdown?.length
+    ? Math.max(...googleDeviceBreakdown.map((d) => d.impressions), 1)
+    : 1;
+  const maxTrendSpend = dailyTrend?.length
+    ? Math.max(...dailyTrend.map((d) => d.spend), 1)
+    : 1;
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -184,35 +269,121 @@ export function ReportPDF({
           </Text>
         </View>
 
-        {data.google ? (
+        {g ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{stripDiacritics('Performanta Google Ads')}</Text>
             <View style={styles.metricsGrid}>
-              <MetricCard label="Impresii" value={data.google.impressions.toLocaleString()} />
-              <MetricCard label="Click-uri" value={data.google.clicks.toLocaleString()} />
-              <MetricCard label="Cheltuieli" value={`$${data.google.cost.toFixed(2)}`} />
-              <MetricCard label="CTR" value={`${data.google.ctr.toFixed(2)}%`} />
-              <MetricCard label="Conversii" value={data.google.conversions.toLocaleString()} />
-              <MetricCard label="CPC mediu" value={`$${data.google.avg_cpc.toFixed(2)}`} />
+              {showG('impressions') && <MetricCard label="Impresii" value={g.impressions.toLocaleString()} />}
+              {showG('clicks') && <MetricCard label="Click-uri" value={g.clicks.toLocaleString()} />}
+              {showG('cost') && <MetricCard label="Cheltuieli" value={`$${g.cost.toFixed(2)}`} />}
+              {showG('ctr') && <MetricCard label="CTR" value={`${g.ctr.toFixed(2)}%`} />}
+              {showG('conversions') && <MetricCard label="Conversii" value={g.conversions.toLocaleString()} />}
+              {showG('avg_cpc') && <MetricCard label="CPC mediu" value={`$${g.avg_cpc.toFixed(2)}`} />}
+              {showG('quality_score') && g.quality_score != null && (
+                <MetricCard label="Quality Score" value={g.quality_score.toFixed(1)} />
+              )}
+              {showG('impression_share') && g.impression_share != null && (
+                <MetricCard label="Impression Share" value={`${(g.impression_share * 100).toFixed(1)}%`} />
+              )}
+              {showG('search_impression_share') && g.search_impression_share != null && (
+                <MetricCard label="Search Imp. Share" value={`${(g.search_impression_share * 100).toFixed(1)}%`} />
+              )}
+              {showG('top_of_page_rate') && g.top_of_page_rate != null && (
+                <MetricCard label="Top of page rate" value={`${(g.top_of_page_rate * 100).toFixed(1)}%`} />
+              )}
             </View>
+            {showC('device_breakdown') && googleDeviceBreakdown && googleDeviceBreakdown.length > 0 && (
+              <View style={{ marginTop: 8 }}>
+                <Text style={[styles.sectionTitle, { fontSize: 10, marginBottom: 6 }]}>
+                  {stripDiacritics('Performanta pe device')}
+                </Text>
+                {googleDeviceBreakdown.slice(0, 5).map((row) => (
+                  <View key={row.device} style={styles.chartRow}>
+                    <Text style={styles.chartLabel}>{row.device}</Text>
+                    <View style={[styles.chartBar, { flex: 1 }]}>
+                      <View
+                        style={[
+                          styles.chartBarFill,
+                          {
+                            width: `${Math.round((row.impressions / maxDeviceImpr) * 100)}%`,
+                            backgroundColor: brandColor,
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={{ fontSize: 8 }}>{row.impressions.toLocaleString()}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            {showG('geographic_performance') && googleGeographicBreakdown && googleGeographicBreakdown.length > 0 && (
+              <View style={{ marginTop: 8 }}>
+                <Text style={[styles.sectionTitle, { fontSize: 10, marginBottom: 6 }]}>
+                  {stripDiacritics('Top geografic')}
+                </Text>
+                {googleGeographicBreakdown.slice(0, 5).map((row) => (
+                  <View key={row.country} style={styles.chartRow}>
+                    <Text style={styles.chartLabel}>{row.country}</Text>
+                    <Text style={{ fontSize: 8 }}>{row.impressions.toLocaleString()} impresii</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         ) : null}
 
-        {data.meta ? (
+        {m ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{stripDiacritics('Performanta Meta Ads')}</Text>
             <View style={styles.metricsGrid}>
-              <MetricCard label="Impresii" value={data.meta.impressions.toLocaleString()} />
-              <MetricCard label="Click-uri" value={data.meta.clicks.toLocaleString()} />
-              <MetricCard label="Cheltuieli" value={`$${data.meta.spend.toFixed(2)}`} />
-              <MetricCard label="CTR" value={`${data.meta.ctr.toFixed(2)}%`} />
-              <MetricCard label="Conversii" value={data.meta.conversions.toLocaleString()} />
-              <MetricCard label="CPC" value={`$${data.meta.cpc.toFixed(2)}`} />
+              {showM('impressions') && <MetricCard label="Impresii" value={m.impressions.toLocaleString()} />}
+              {showM('clicks') && <MetricCard label="Click-uri" value={m.clicks.toLocaleString()} />}
+              {showM('spend') && <MetricCard label="Cheltuieli" value={`$${m.spend.toFixed(2)}`} />}
+              {showM('ctr') && <MetricCard label="CTR" value={`${m.ctr.toFixed(2)}%`} />}
+              {showM('conversions') && <MetricCard label="Conversii" value={m.conversions.toLocaleString()} />}
+              {showM('cpc') && <MetricCard label="CPC" value={`$${m.cpc.toFixed(2)}`} />}
+              {showM('reach') && m.reach != null && <MetricCard label="Reach" value={m.reach.toLocaleString()} />}
+              {showM('frequency') && m.frequency != null && (
+                <MetricCard label="Frecventa" value={m.frequency.toFixed(2)} />
+              )}
+              {showM('link_clicks') && m.link_clicks != null && (
+                <MetricCard label="Link clicks" value={m.link_clicks.toLocaleString()} />
+              )}
+              {showM('cpm') && m.cpm != null && <MetricCard label="CPM" value={`$${m.cpm.toFixed(2)}`} />}
+              {showM('engagement_rate') && m.engagement_rate != null && (
+                <MetricCard label="Engagement rate" value={`${m.engagement_rate.toFixed(2)}%`} />
+              )}
+              {showM('video_views') && m.video_views != null && (
+                <MetricCard label="Vizionari video" value={m.video_views.toLocaleString()} />
+              )}
             </View>
           </View>
         ) : null}
 
-        {!data.google && !data.meta ? (
+        {showC('performance_trend') && dailyTrend && dailyTrend.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{stripDiacritics('Evolutie cheltuieli (pe zi)')}</Text>
+            {dailyTrend.slice(-14).map((row) => (
+              <View key={row.date} style={styles.chartRow}>
+                <Text style={styles.chartLabel}>{row.date}</Text>
+                <View style={[styles.chartBar, { flex: 1 }]}>
+                  <View
+                    style={[
+                      styles.chartBarFill,
+                      {
+                        width: `${Math.round((row.spend / maxTrendSpend) * 100)}%`,
+                        backgroundColor: brandColor,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={{ fontSize: 8 }}>${row.spend.toFixed(0)}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {!g && !m ? (
           <View style={styles.section}>
             <Text style={styles.subtitle}>
               {stripDiacritics('Nu exista date din platforme de reclame pentru aceasta perioada.')}

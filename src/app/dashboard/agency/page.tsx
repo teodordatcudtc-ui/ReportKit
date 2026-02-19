@@ -3,6 +3,20 @@
 import { useEffect, useState } from 'react';
 import { getPlanLimit } from '@/lib/plans';
 import { ReportPreview } from '@/components/ReportPreview';
+import {
+  normalizeReportSettings,
+  getDefaultReportSettings,
+  GOOGLE_REPORT_KEYS,
+  META_REPORT_KEYS,
+  REPORT_CHART_KEYS,
+  GOOGLE_LABELS,
+  META_LABELS,
+  CHART_LABELS,
+  type ReportSettings,
+  type GoogleReportKey,
+  type MetaReportKey,
+  type ReportChartKey,
+} from '@/lib/report-settings';
 
 interface Agency {
   id: string;
@@ -13,6 +27,7 @@ interface Agency {
   contact_email: string | null;
   contact_phone: string | null;
   plan?: string | null;
+  report_settings?: unknown;
 }
 
 interface ScheduledRow {
@@ -50,6 +65,7 @@ export default function AgencySettingsPage() {
   const [scheduleToEmail, setScheduleToEmail] = useState('');
   const [addingSchedule, setAddingSchedule] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [reportSettings, setReportSettings] = useState<ReportSettings>(getDefaultReportSettings());
 
   function load() {
     setLoading(true);
@@ -63,6 +79,7 @@ export default function AgencySettingsPage() {
           setWebsiteUrl(data.website_url ?? '');
           setContactEmail(data.contact_email ?? '');
           setContactPhone(data.contact_phone ?? '');
+          setReportSettings(normalizeReportSettings(data.report_settings));
         }
         setLoading(false);
       })
@@ -131,6 +148,7 @@ export default function AgencySettingsPage() {
         website_url: websiteUrl.trim() || null,
         contact_email: contactEmail.trim() || null,
         contact_phone: contactPhone.trim() || null,
+        report_settings: reportSettings,
       }),
     });
     setSaving(false);
@@ -318,6 +336,87 @@ export default function AgencySettingsPage() {
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="+40 123 456 789"
             />
+          </div>
+        </section>
+
+        <section className="bg-white border border-slate-200 rounded-rk-lg shadow-rk p-5 space-y-4">
+          <h2 className="text-base font-semibold text-slate-900">Campuri in raport PDF</h2>
+          <p className="text-xs text-slate-500">
+            Bifeaza ce metrici si sectiuni sa apara in rapoartele generate. Debifate nu vor fi afisate in PDF.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="text-sm font-medium text-slate-700 mb-2">Google Ads</h3>
+              <div className="space-y-1.5">
+                {GOOGLE_REPORT_KEYS.map((key) => (
+                  <label key={key} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={reportSettings.google?.[key as GoogleReportKey] !== false}
+                      onChange={(e) => {
+                        setReportSettings((prev) => ({
+                          ...prev,
+                          google: {
+                            ...prev.google,
+                            [key]: e.target.checked,
+                          },
+                        }));
+                      }}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    {GOOGLE_LABELS[key as GoogleReportKey]}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-slate-700 mb-2">Meta Ads</h3>
+              <div className="space-y-1.5">
+                {META_REPORT_KEYS.map((key) => (
+                  <label key={key} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={reportSettings.meta?.[key as MetaReportKey] !== false}
+                      onChange={(e) => {
+                        setReportSettings((prev) => ({
+                          ...prev,
+                          meta: {
+                            ...prev.meta,
+                            [key]: e.target.checked,
+                          },
+                        }));
+                      }}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    {META_LABELS[key as MetaReportKey]}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-slate-700 mb-2">Grafice in raport</h3>
+            <div className="space-y-1.5">
+              {REPORT_CHART_KEYS.map((key) => (
+                <label key={key} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={reportSettings.charts?.[key as ReportChartKey] !== false}
+                    onChange={(e) => {
+                      setReportSettings((prev) => ({
+                        ...prev,
+                        charts: {
+                          ...prev.charts,
+                          [key]: e.target.checked,
+                        },
+                      }));
+                    }}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  {CHART_LABELS[key as ReportChartKey]}
+                </label>
+              ))}
+            </div>
           </div>
         </section>
 

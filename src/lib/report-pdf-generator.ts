@@ -1,9 +1,17 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import React from 'react';
 import { renderToBuffer } from '@react-pdf/renderer';
-import { ReportPDF, type GoogleMetrics, type MetaMetrics } from '@/lib/report-pdf';
-import { getValidAccessToken, fetchGoogleAdsData } from '@/lib/google-ads';
-import { fetchMetaAdsData } from '@/lib/meta-ads';
+import { ReportPDF, type GoogleMetrics, type MetaMetrics, type DailyTrendRow } from '@/lib/report-pdf';
+import {
+  getValidAccessToken,
+  fetchGoogleAdsData,
+  fetchGoogleAdsQualityScore,
+  fetchGoogleAdsDeviceBreakdown,
+  fetchGoogleAdsGeographic,
+  fetchGoogleAdsDaily,
+} from '@/lib/google-ads';
+import { fetchMetaAdsData, fetchMetaAdsDaily } from '@/lib/meta-ads';
+import { normalizeReportSettings } from '@/lib/report-settings';
 
 export async function generateReportPdfBuffer(
   supabase: SupabaseClient,
@@ -21,16 +29,21 @@ export async function generateReportPdfBuffer(
 
   const { data: agency, error: agencyErr } = await supabase
     .from('agencies')
-    .select('agency_name, logo_url, primary_color, website_url, contact_email, contact_phone')
+    .select('agency_name, logo_url, primary_color, website_url, contact_email, contact_phone, report_settings')
     .eq('id', agencyId)
     .single();
   if (agencyErr || !agency) throw new Error('Agency not found');
+
+  const reportSettings = normalizeReportSettings(agency.report_settings ?? null);
 
   const { data: tokens } = await supabase.from('api_tokens').select('*').eq('client_id', clientId);
   const googleToken = (tokens ?? []).find((t: { platform: string }) => t.platform === 'google_ads');
   const metaToken = (tokens ?? []).find((t: { platform: string }) => t.platform === 'meta_ads');
 
   const reportData: { google?: GoogleMetrics; meta?: MetaMetrics } = {};
+  let googleDeviceBreakdown: { device: string; impressions: number; clicks: number; cost_micros: number }[] = [];
+  let googleGeographicBreakdown: { country: string; impressions: number; clicks: number; cost_micros: number }[] = [];
+  const dailyTrendByDate: Record<string, DailyTrendRow> = {};
 
   const zeroGoogleMetrics: GoogleMetrics = {
     impressions: 0,
@@ -65,6 +78,23 @@ export async function generateReportPdfBuffer(
         const customerId = googleToken.account_id || '0';
         if (canFetchGoogle) {
           googleMetrics = await fetchGoogleAdsData(customerId, accessToken, dateStart, dateEnd);
+          const [qs, deviceRows, geoRows, dailyRows] = await Promise.all([
+            fetchGoogleAdsQualityScore(customerId, accessToken, dateStart, dateEnd),
+            fetchGoogleAdsDeviceBreakdown(customerId, accessToken, dateStart, dateEnd),
+            fetchGoogleAdsGeographic(customerId, accessToken, dateStart, dateEnd),
+            fetchGoogleAdsDaily(customerId, accessToken, dateStart, dateEnd),
+          ]);
+          if (qs != null) (googleMetrics as Record<string, unknown>).quality_score = qs;
+          googleDeviceBreakdown = deviceRows;
+          googleGeographicBreakdown = geoRows;
+          for (const row of dailyRows) {
+            const key = row.date;
+            if (!dailyTrendByDate[key]) {
+              dailyTrendByDate[key] = { date: key, impressions: 0, spend: 0 };
+            }
+            dailyTrendByDate[key].impressions += row.impressions;
+            dailyTrendByDate[key].spend += row.cost_micros / 1_000_000;
+          }
         }
         reportData.google = {
           impressions: googleMetrics.impressions,
@@ -74,6 +104,11 @@ export async function generateReportPdfBuffer(
           conversions: googleMetrics.conversions,
           avg_cpc: googleMetrics.average_cpc / 1_000_000,
         };
+        const g = googleMetrics as import('@/lib/google-ads').GoogleAdsMetrics;
+        if (g.impression_share != null) reportData.google.impression_share = g.impression_share;
+        if (g.search_impression_share != null) reportData.google.search_impression_share = g.search_impression_share;
+        if (g.top_of_page_rate != null) reportData.google.top_of_page_rate = g.top_of_page_rate;
+        if (g.quality_score != null) reportData.google.quality_score = g.quality_score;
       } catch {
         reportData.google = zeroGoogleMetrics;
       }
@@ -83,7 +118,10 @@ export async function generateReportPdfBuffer(
   }
 
   if (metaToken?.access_token && metaToken?.account_id) {
-    const metaMetrics = await fetchMetaAdsData(metaToken.account_id, metaToken.access_token, dateStart, dateEnd);
+    const [metaMetrics, metaDailyRows] = await Promise.all([
+      fetchMetaAdsData(metaToken.account_id, metaToken.access_token, dateStart, dateEnd),
+      fetchMetaAdsDaily(metaToken.account_id, metaToken.access_token, dateStart, dateEnd),
+    ]);
     reportData.meta = {
       impressions: metaMetrics.impressions,
       clicks: metaMetrics.clicks,
@@ -92,7 +130,23 @@ export async function generateReportPdfBuffer(
       conversions: metaMetrics.conversions,
       cpc: metaMetrics.cpc,
     };
+    if (metaMetrics.reach != null) reportData.meta.reach = metaMetrics.reach;
+    if (metaMetrics.frequency != null) reportData.meta.frequency = metaMetrics.frequency;
+    if (metaMetrics.link_clicks != null) reportData.meta.link_clicks = metaMetrics.link_clicks;
+    if (metaMetrics.cpm != null) reportData.meta.cpm = metaMetrics.cpm;
+    if (metaMetrics.engagement_rate != null) reportData.meta.engagement_rate = metaMetrics.engagement_rate;
+    if (metaMetrics.video_views != null) reportData.meta.video_views = metaMetrics.video_views;
+    for (const row of metaDailyRows) {
+      const key = row.date;
+      if (!dailyTrendByDate[key]) {
+        dailyTrendByDate[key] = { date: key, impressions: 0, spend: 0 };
+      }
+      dailyTrendByDate[key].impressions += row.impressions;
+      dailyTrendByDate[key].spend += row.spend;
+    }
   }
+
+  const dailyTrend = Object.values(dailyTrendByDate).sort((a, b) => a.date.localeCompare(b.date));
 
   const agencyInfo = {
     agency_name: agency.agency_name,
@@ -105,6 +159,10 @@ export async function generateReportPdfBuffer(
 
   const pdfElement = React.createElement(ReportPDF, {
     data: reportData,
+    reportSettings,
+    googleDeviceBreakdown: googleDeviceBreakdown.length > 0 ? googleDeviceBreakdown : undefined,
+    googleGeographicBreakdown: googleGeographicBreakdown.length > 0 ? googleGeographicBreakdown : undefined,
+    dailyTrend: dailyTrend.length > 0 ? dailyTrend : undefined,
     agencyInfo,
     clientInfo: { client_name: client.client_name },
     dateStart,

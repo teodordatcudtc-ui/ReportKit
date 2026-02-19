@@ -23,6 +23,28 @@ export interface GoogleAdsMetrics {
   conversions: number;
   ctr: number;
   average_cpc: number;
+  /** Quality Score (medie, de la keyword) – optional */
+  quality_score?: number | null;
+  /** Impression share (share of impressioni eligibile) */
+  impression_share?: number | null;
+  /** Search impression share */
+  search_impression_share?: number | null;
+  /** Top of page rate (search top impression share) */
+  top_of_page_rate?: number | null;
+}
+
+export interface GoogleAdsDeviceRow {
+  device: string;
+  impressions: number;
+  clicks: number;
+  cost_micros: number;
+}
+
+export interface GoogleAdsGeographicRow {
+  country: string;
+  impressions: number;
+  clicks: number;
+  cost_micros: number;
 }
 
 /** Date mock pentru testare când nu ai campanii reale. Setează GOOGLE_ADS_MOCK_DATA=true în .env.local */
@@ -39,6 +61,10 @@ function getMockGoogleAdsMetrics(dateStart: string, dateEnd: string): GoogleAdsM
     conversions,
     ctr: clicks / impressions,
     average_cpc: costMicros / clicks,
+    quality_score: 7.2,
+    impression_share: 0.42,
+    search_impression_share: 0.38,
+    top_of_page_rate: 0.31,
   };
 }
 
@@ -88,7 +114,10 @@ export async function fetchGoogleAdsData(
       metrics.cost_micros,
       metrics.conversions,
       metrics.ctr,
-      metrics.average_cpc
+      metrics.average_cpc,
+      metrics.impression_share,
+      metrics.search_impression_share,
+      metrics.search_top_impression_share
     FROM campaign
     WHERE segments.date BETWEEN '${dateStart}' AND '${dateEnd}'
   `;
@@ -122,6 +151,9 @@ export async function fetchGoogleAdsData(
       conversions?: string;
       ctr?: string;
       averageCpc?: string;
+      impressionShare?: string;
+      searchImpressionShare?: string;
+      searchTopImpressionShare?: string;
     };
   };
   const data = (await res.json()) as { results?: Row[] };
@@ -131,7 +163,11 @@ export async function fetchGoogleAdsData(
     costMicros = 0,
     conversions = 0,
     ctr = 0,
-    averageCpc = 0;
+    averageCpc = 0,
+    impressionShareSum = 0,
+    searchImpressionShareSum = 0,
+    searchTopSum = 0,
+    shareCount = 0;
   for (const row of results) {
     const m = row.metrics;
     if (m) {
@@ -141,10 +177,23 @@ export async function fetchGoogleAdsData(
       conversions += Number(m.conversions ?? 0);
       ctr += Number(m.ctr ?? 0);
       averageCpc += Number(m.averageCpc ?? 0);
+      const isVal = Number(m.impressionShare ?? 0);
+      const sisVal = Number(m.searchImpressionShare ?? 0);
+      const stVal = Number(m.searchTopImpressionShare ?? 0);
+      if (!Number.isNaN(isVal) && isVal > 0) {
+        impressionShareSum += isVal;
+        shareCount++;
+      }
+      if (!Number.isNaN(sisVal) && sisVal > 0) {
+        searchImpressionShareSum += sisVal;
+      }
+      if (!Number.isNaN(stVal) && stVal > 0) {
+        searchTopSum += stVal;
+      }
     }
   }
   const count = results.length || 1;
-  return {
+  const out: GoogleAdsMetrics = {
     impressions,
     clicks,
     cost_micros: costMicros,
@@ -152,6 +201,12 @@ export async function fetchGoogleAdsData(
     ctr: count > 0 ? ctr / count : 0,
     average_cpc: count > 0 ? averageCpc / count : 0,
   };
+  if (shareCount > 0) {
+    out.impression_share = impressionShareSum / shareCount;
+    out.search_impression_share = searchImpressionShareSum / shareCount;
+    out.top_of_page_rate = searchTopSum / shareCount;
+  }
+  return out;
 }
 
 export interface GoogleAdsDailyRow {
@@ -227,4 +282,169 @@ export async function fetchGoogleAdsDaily(
     }
   }
   return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** Quality Score mediu (din keyword); revine null dacă nu e disponibil. */
+export async function fetchGoogleAdsQualityScore(
+  customerId: string,
+  accessToken: string,
+  dateStart: string,
+  dateEnd: string
+): Promise<number | null> {
+  if (process.env.GOOGLE_ADS_MOCK_DATA === 'true') return 7.2;
+  const devToken = process.env.GOOGLE_DEVELOPER_TOKEN;
+  if (!devToken) return null;
+  const query = `
+    SELECT metrics.quality_score.quality_score
+    FROM keyword_view
+    WHERE segments.date BETWEEN '${dateStart}' AND '${dateEnd}'
+  `;
+  const url = `https://googleads.googleapis.com/v16/customers/${customerId}/googleAds:search`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'developer-token': devToken,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query }),
+  });
+  if (!res.ok) return null;
+  const data = (await res.json()) as { results?: Array<{ metrics?: { qualityScore?: { qualityScore?: string } } }> };
+  const results = data.results ?? [];
+  let sum = 0;
+  let n = 0;
+  for (const row of results) {
+    const q = Number(row.metrics?.qualityScore?.qualityScore ?? 0);
+    if (!Number.isNaN(q) && q > 0) {
+      sum += q;
+      n++;
+    }
+  }
+  return n > 0 ? sum / n : null;
+}
+
+/** Performanță pe device (Mobil / Desktop / Tableta). */
+export async function fetchGoogleAdsDeviceBreakdown(
+  customerId: string,
+  accessToken: string,
+  dateStart: string,
+  dateEnd: string
+): Promise<GoogleAdsDeviceRow[]> {
+  if (process.env.GOOGLE_ADS_MOCK_DATA === 'true') {
+    return [
+      { device: 'MOBILE', impressions: 6000, clicks: 180, cost_micros: 40_000_000 },
+      { device: 'DESKTOP', impressions: 5000, clicks: 140, cost_micros: 35_000_000 },
+      { device: 'TABLET', impressions: 1000, clicks: 20, cost_micros: 10_000_000 },
+    ];
+  }
+  const devToken = process.env.GOOGLE_DEVELOPER_TOKEN;
+  if (!devToken) return [];
+  const query = `
+    SELECT
+      segments.device,
+      metrics.impressions,
+      metrics.clicks,
+      metrics.cost_micros
+    FROM campaign
+    WHERE segments.date BETWEEN '${dateStart}' AND '${dateEnd}'
+  `;
+  const url = `https://googleads.googleapis.com/v16/customers/${customerId}/googleAds:search`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'developer-token': devToken,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query }),
+  });
+  if (!res.ok) return [];
+  type Row = {
+    segments?: { device?: string };
+    metrics?: { impressions?: string; clicks?: string; costMicros?: string };
+  };
+  const data = (await res.json()) as { results?: Row[] };
+  const results = data.results ?? [];
+  const byDevice: Record<string, GoogleAdsDeviceRow> = {};
+  for (const row of results) {
+    const device = row.segments?.device ?? 'UNKNOWN';
+    if (!byDevice[device]) {
+      byDevice[device] = { device, impressions: 0, clicks: 0, cost_micros: 0 };
+    }
+    const m = row.metrics;
+    if (m) {
+      byDevice[device].impressions += Number(m.impressions ?? 0);
+      byDevice[device].clicks += Number(m.clicks ?? 0);
+      byDevice[device].cost_micros += Number(m.costMicros ?? 0);
+    }
+  }
+  return Object.values(byDevice).sort((a, b) => b.impressions - a.impressions);
+}
+
+/** Performanță pe țară (top geografic). */
+export async function fetchGoogleAdsGeographic(
+  customerId: string,
+  accessToken: string,
+  dateStart: string,
+  dateEnd: string
+): Promise<GoogleAdsGeographicRow[]> {
+  if (process.env.GOOGLE_ADS_MOCK_DATA === 'true') {
+    return [
+      { country: 'Romania', impressions: 10000, clicks: 280, cost_micros: 70_000_000 },
+      { country: 'United States', impressions: 2000, clicks: 60, cost_micros: 15_000_000 },
+    ];
+  }
+  const devToken = process.env.GOOGLE_DEVELOPER_TOKEN;
+  if (!devToken) return [];
+  const query = `
+    SELECT
+      segments.geoTargetCountry,
+      metrics.impressions,
+      metrics.clicks,
+      metrics.cost_micros
+    FROM campaign
+    WHERE segments.date BETWEEN '${dateStart}' AND '${dateEnd}'
+  `;
+  const url = `https://googleads.googleapis.com/v16/customers/${customerId}/googleAds:search`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'developer-token': devToken,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query }),
+  });
+  if (!res.ok) return [];
+  type Row = {
+    segments?: { geoTargetCountry?: string };
+    metrics?: { impressions?: string; clicks?: string; costMicros?: string };
+  };
+  const data = (await res.json()) as { results?: Row[] };
+  const results = data.results ?? [];
+  const byCountry: Record<string, GoogleAdsGeographicRow> = {};
+  const countryNames: Record<string, string> = {
+    RO: 'Romania',
+    US: 'United States',
+    GB: 'United Kingdom',
+    DE: 'Germany',
+    FR: 'France',
+    IT: 'Italy',
+    ES: 'Spain',
+  };
+  for (const row of results) {
+    const code = (row.segments?.geoTargetCountry ?? 'XX').toUpperCase();
+    const country = countryNames[code] ?? code;
+    if (!byCountry[country]) {
+      byCountry[country] = { country, impressions: 0, clicks: 0, cost_micros: 0 };
+    }
+    const m = row.metrics;
+    if (m) {
+      byCountry[country].impressions += Number(m.impressions ?? 0);
+      byCountry[country].clicks += Number(m.clicks ?? 0);
+      byCountry[country].cost_micros += Number(m.costMicros ?? 0);
+    }
+  }
+  return Object.values(byCountry).sort((a, b) => b.impressions - a.impressions).slice(0, 10);
 }
