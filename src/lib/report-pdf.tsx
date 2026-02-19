@@ -30,11 +30,19 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: 2,
     borderBottomColor: '#3B82F6',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerRight: {
+    marginLeft: 16,
   },
   logo: {
     width: 120,
     height: 40,
-    marginBottom: 8,
   },
   title: {
     fontSize: 18,
@@ -258,15 +266,19 @@ export function ReportPDF({
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={headerStyle}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.title}>{stripDiacritics('Raport performanta marketing')}</Text>
+            <Text style={styles.subtitle}>Client: {clientName}</Text>
+            <Text style={styles.date}>
+              {stripDiacritics('Perioada')}: {dateStart} – {dateEnd}
+            </Text>
+          </View>
           {agencyInfo.logo_url ? (
-            // eslint-disable-next-line jsx-a11y/alt-text -- PDF Image has no alt prop
-            <Image src={agencyInfo.logo_url} style={styles.logo} />
+            <View style={styles.headerRight}>
+              {/* eslint-disable-next-line jsx-a11y/alt-text -- PDF Image has no alt prop */}
+              <Image src={agencyInfo.logo_url} style={styles.logo} />
+            </View>
           ) : null}
-          <Text style={styles.title}>{stripDiacritics('Raport performanta marketing')}</Text>
-          <Text style={styles.subtitle}>Client: {clientName}</Text>
-          <Text style={styles.date}>
-            {stripDiacritics('Perioada')}: {dateStart} – {dateEnd}
-          </Text>
         </View>
 
         {g ? (
