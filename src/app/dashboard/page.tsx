@@ -22,6 +22,15 @@ interface Client {
   client_name: string;
 }
 
+interface SummaryData {
+  totals: { spend: number; impressions: number; conversions: number };
+  topClientsBySpend: { client_id: string; client_name: string; spend: number }[];
+  clientsWithoutReport: { client_id: string; client_name: string }[];
+  isDemo?: boolean;
+  date_start: string;
+  date_end: string;
+}
+
 function getGreeting() {
   const h = new Date().getHours();
   if (h < 12) return 'Bună dimineața';
@@ -29,12 +38,23 @@ function getGreeting() {
   return 'Bună seara';
 }
 
+function getMonthRange(): { start: string; end: string } {
+  const now = new Date();
+  return {
+    start: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10),
+    end: new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10),
+  };
+}
+
 export default function DashboardPage() {
   const { data: session } = useSession();
   const [agency, setAgency] = useState<Agency | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [reports, setReports] = useState<ReportRow[]>([]);
+  const [summary, setSummary] = useState<SummaryData | null>(null);
+  const [period, setPeriod] = useState(getMonthRange());
   const [loading, setLoading] = useState(true);
+  const [summaryLoading, setSummaryLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
@@ -49,6 +69,17 @@ export default function DashboardPage() {
     });
   }, []);
 
+  useEffect(() => {
+    setSummaryLoading(true);
+    fetch(`/api/dashboard/summary?date_start=${period.start}&date_end=${period.end}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setSummary(data);
+        setSummaryLoading(false);
+      })
+      .catch(() => setSummaryLoading(false));
+  }, [period.start, period.end]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
@@ -60,6 +91,9 @@ export default function DashboardPage() {
   const name = agency?.agency_name ?? session?.user?.name ?? 'acolo';
   const today = new Date();
   const dateStr = today.toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const periodLabel = period.start.slice(0, 7) === getMonthRange().start.slice(0, 7)
+    ? 'Luna curentă'
+    : `${period.start} – ${period.end}`;
 
   return (
     <div className="space-y-8">
@@ -72,6 +106,132 @@ export default function DashboardPage() {
           {dateStr} · {reports.length} rapoarte în listă
         </p>
       </div>
+
+      {/* Rezumat perioadă + selector */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h2 className="text-base font-semibold text-slate-900">Rezumat (toți clienții)</h2>
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-slate-600">Perioadă:</label>
+          <select
+            value={period.start}
+            onChange={(e) => {
+              const start = e.target.value;
+              const [y, m] = start.split('-').map(Number);
+              const end = new Date(y, m, 0).toISOString().slice(0, 10); // ultima zi a lunii m
+              setPeriod({ start, end });
+            }}
+            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white"
+          >
+            <option value={getMonthRange().start}>Luna curentă</option>
+            {[1, 2, 3, 4, 5, 6].map((delta) => {
+              const d = new Date();
+              d.setMonth(d.getMonth() - delta);
+              const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+              const label = d.toLocaleDateString('ro-RO', { month: 'long', year: 'numeric' });
+              return (
+                <option key={start} value={start}>
+                  {label}
+                </option>
+              );
+            })}
+          </select>
+          {summary?.isDemo && (
+            <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded">Date demo</span>
+          )}
+        </div>
+      </div>
+
+      {/* Total cheltuieli / impresii / conversii */}
+      {summaryLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white border border-slate-200 rounded-rk-lg p-5 shadow-rk animate-pulse h-28" />
+          ))}
+        </div>
+      ) : summary ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white border border-slate-200 rounded-rk-lg p-5 shadow-rk">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total cheltuieli</p>
+            <div className="flex items-baseline gap-2 mt-3">
+              <span className="font-display text-3xl text-slate-900">
+                {summary.totals.spend.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">{periodLabel}</p>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-rk-lg p-5 shadow-rk">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total impresii</p>
+            <div className="flex items-baseline gap-2 mt-3">
+              <span className="font-display text-3xl text-slate-900">
+                {summary.totals.impressions.toLocaleString('ro-RO')}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">{periodLabel}</p>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-rk-lg p-5 shadow-rk">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total conversii</p>
+            <div className="flex items-baseline gap-2 mt-3">
+              <span className="font-display text-3xl text-slate-900">
+                {summary.totals.conversions.toLocaleString('ro-RO')}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">{periodLabel}</p>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Top 5 + Clienți fără raport */}
+      {summary && !summaryLoading && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white border border-slate-200 rounded-rk-lg shadow-rk overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-200">
+              <h3 className="text-sm font-semibold text-slate-900">Top 5 clienți după cheltuieli</h3>
+              <p className="text-xs text-slate-500 mt-0.5">{periodLabel}</p>
+            </div>
+            <ul className="divide-y divide-slate-100">
+              {summary.topClientsBySpend.map((c, i) => (
+                <li key={c.client_id} className="px-5 py-3 flex items-center justify-between gap-3">
+                  <span className="text-slate-400 font-mono text-sm w-6">{i + 1}.</span>
+                  <Link href={c.client_id.startsWith('demo') ? '/clients' : `/clients/${c.client_id}`} className="flex-1 text-sm font-medium text-slate-800 hover:text-blue-700 truncate">
+                    {c.client_name}
+                  </Link>
+                  <span className="text-sm font-semibold text-slate-900 whitespace-nowrap">
+                    {c.spend.toLocaleString('ro-RO', { minimumFractionDigits: 2 })} €
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-rk-lg shadow-rk overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-200">
+              <h3 className="text-sm font-semibold text-slate-900">Clienți fără raport în perioada selectată</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Reminder: generează raport pentru acești clienți</p>
+            </div>
+            <ul className="divide-y divide-slate-100">
+              {summary.clientsWithoutReport.length === 0 ? (
+                <li className="px-5 py-4 text-sm text-slate-500">Toți clienții au raport în această perioadă.</li>
+              ) : (
+                summary.clientsWithoutReport.map((c) => (
+                  <li key={c.client_id} className="px-5 py-3 flex items-center justify-between gap-3">
+                    <Link
+                      href={c.client_id.startsWith('demo') ? '/clients' : `/clients/${c.client_id}`}
+                      className="text-sm font-medium text-slate-800 hover:text-blue-700 truncate"
+                    >
+                      {c.client_name}
+                    </Link>
+                    <Link
+                      href={c.client_id.startsWith('demo') ? '/clients' : `/clients/${c.client_id}#generate`}
+                      className="text-xs font-semibold text-blue-700 hover:underline"
+                    >
+                      Generează raport
+                    </Link>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {/* Stats row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
