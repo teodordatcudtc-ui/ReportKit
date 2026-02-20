@@ -11,6 +11,11 @@ interface Client {
   last_report: { date: string; pdf_url: string } | null;
 }
 
+interface GoogleAccount {
+  id: string;
+  descriptive_name: string;
+}
+
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,6 +23,10 @@ export default function ClientsPage() {
   const [newName, setNewName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [googleAccounts, setGoogleAccounts] = useState<GoogleAccount[]>([]);
+  const [hasGoogleConnection, setHasGoogleConnection] = useState(false);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
+  const [addMode, setAddMode] = useState<'choose' | 'manual'>('choose');
 
   function load() {
     fetch('/api/clients')
@@ -31,7 +40,21 @@ export default function ClientsPage() {
     load();
   }, []);
 
-  async function handleAdd(e: React.FormEvent) {
+  useEffect(() => {
+    if (!modalOpen) return;
+    setLoadingAccounts(true);
+    setAddMode('choose');
+    fetch('/api/clients/available-google-accounts')
+      .then((r) => r.json())
+      .then((data) => {
+        setGoogleAccounts(data.accounts ?? []);
+        setHasGoogleConnection(data.has_connection === true);
+        setLoadingAccounts(false);
+      })
+      .catch(() => setLoadingAccounts(false));
+  }, [modalOpen]);
+
+  async function handleAddManual(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setSubmitting(true);
@@ -48,6 +71,28 @@ export default function ClientsPage() {
     }
     setModalOpen(false);
     setNewName('');
+    load();
+    if (data.id) window.location.href = `/clients/${data.id}`;
+  }
+
+  async function handleAddFromGoogle(account: GoogleAccount) {
+    setError('');
+    setSubmitting(true);
+    const res = await fetch('/api/clients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_name: account.descriptive_name,
+        google_ads_customer_id: account.id,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setSubmitting(false);
+    if (!res.ok) {
+      setError(data.error ?? 'Nu s-a putut adăuga clientul.');
+      return;
+    }
+    setGoogleAccounts((prev) => prev.filter((a) => a.id !== account.id));
     load();
     if (data.id) window.location.href = `/clients/${data.id}`;
   }
@@ -124,43 +169,97 @@ export default function ClientsPage() {
 
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg max-w-sm w-full p-6">
+          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
             <h3 className="font-semibold text-slate-800">Adaugă client</h3>
-            <form onSubmit={handleAdd} className="mt-4 space-y-4">
-              {error && (
-                <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</p>
-              )}
-              <div>
-                <label htmlFor="client_name" className="block text-sm font-medium text-slate-700 mb-1">
-                  Nume client
-                </label>
-                <input
-                  id="client_name"
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="ex. Shoes SRL"
-                />
+            {error && (
+              <p className="mt-3 text-sm text-red-600 bg-red-50 p-2 rounded">{error}</p>
+            )}
+
+            {loadingAccounts ? (
+              <p className="mt-4 text-slate-500">Se încarcă conturile Google Ads…</p>
+            ) : addMode === 'manual' ? (
+              <form onSubmit={handleAddManual} className="mt-4 space-y-4">
+                <p className="text-sm text-slate-600">Client fără cont Google Ads sau adaugă manual.</p>
+                <div>
+                  <label htmlFor="client_name" className="block text-sm font-medium text-slate-700 mb-1">
+                    Nume client
+                  </label>
+                  <input
+                    id="client_name"
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="ex. Shoes SRL"
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => { setAddMode('choose'); setError(''); }}
+                    className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg"
+                  >
+                    Înapoi
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {submitting ? 'Se adaugă…' : 'Adaugă client'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="mt-4 space-y-4">
+                {hasGoogleConnection && googleAccounts.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 mb-2">Selectează din Google Ads (Manager Account)</p>
+                    <ul className="border border-slate-200 rounded-lg divide-y divide-slate-200 max-h-48 overflow-y-auto">
+                      {googleAccounts.map((acc) => (
+                        <li key={acc.id} className="flex items-center justify-between px-3 py-2">
+                          <span className="text-sm text-slate-800 truncate" title={acc.descriptive_name}>{acc.descriptive_name}</span>
+                          <span className="text-xs text-slate-500 ml-2 shrink-0">{acc.id}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleAddFromGoogle(acc)}
+                            disabled={submitting}
+                            className="ml-2 px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            Adaugă
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {hasGoogleConnection && googleAccounts.length === 0 && (
+                  <p className="text-sm text-slate-600">Toate conturile din Manager Account sunt deja adăugate ca clienți.</p>
+                )}
+                {!hasGoogleConnection && (
+                  <p className="text-sm text-slate-600">Conectează Google Ads în Setări agenție pentru a vedea aici lista de clienți din Manager Account.</p>
+                )}
+                <div className="pt-2 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setAddMode('manual')}
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    + Adaugă client manual (fără Google Ads)
+                  </button>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => { setModalOpen(false); setError(''); setAddMode('choose'); }}
+                    className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg"
+                  >
+                    Închide
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2 justify-end">
-                <button
-                  type="button"
-                  onClick={() => { setModalOpen(false); setError(''); }}
-                  className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg"
-                >
-                  Anulare
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {submitting ? 'Se adaugă…' : 'Adaugă client'}
-                </button>
-              </div>
-            </form>
+            )}
           </div>
         </div>
       )}

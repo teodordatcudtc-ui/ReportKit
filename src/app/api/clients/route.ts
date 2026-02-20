@@ -56,7 +56,10 @@ export async function GET() {
   return NextResponse.json({ clients: withLastReport });
 }
 
-const createSchema = z.object({ client_name: z.string().min(1) });
+const createSchema = z.object({
+  client_name: z.string().min(1),
+  google_ads_customer_id: z.string().optional(),
+});
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -80,12 +83,18 @@ export async function POST(req: Request) {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'Invalid client name' }, { status: 400 });
 
+  const insert: { agency_id: string; client_name: string; google_ads_customer_id?: string; google_ads_connected?: boolean } = {
+    agency_id: agency.id,
+    client_name: parsed.data.client_name,
+  };
+  if (parsed.data.google_ads_customer_id) {
+    insert.google_ads_customer_id = parsed.data.google_ads_customer_id;
+    insert.google_ads_connected = true;
+  }
+
   const { data, error } = await getSupabaseAdmin()
     .from('clients')
-    .insert({
-      agency_id: agency.id,
-      client_name: parsed.data.client_name,
-    })
+    .insert(insert)
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
