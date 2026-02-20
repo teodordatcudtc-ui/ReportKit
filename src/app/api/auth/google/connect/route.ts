@@ -15,18 +15,17 @@ export async function GET(req: Request) {
   }
   const { searchParams } = new URL(req.url);
   const clientId = searchParams.get('client_id');
-  if (!clientId) {
-    return NextResponse.redirect(new URL('/clients?error=missing_client', req.url));
-  }
   const origin = new URL(req.url).origin;
   const redirectUri = `${origin}/api/auth/google/callback`;
   const clientIdEnv = process.env.GOOGLE_CLIENT_ID;
   if (!clientIdEnv) {
-    return NextResponse.redirect(
-      new URL(`/clients/${clientId}?error=google_not_configured`, req.url)
-    );
+    const dest = clientId ? `/clients/${clientId}?error=google_not_configured` : '/dashboard/agency?error=google_not_configured';
+    return NextResponse.redirect(new URL(dest, origin));
   }
-  const state = Buffer.from(JSON.stringify({ client_id: clientId })).toString('base64url');
+  const stateObj: { client_id?: string; agency?: boolean } = clientId
+    ? { client_id: clientId }
+    : { agency: true };
+  const state = Buffer.from(JSON.stringify(stateObj)).toString('base64url');
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   url.searchParams.set('client_id', clientIdEnv);
   url.searchParams.set('redirect_uri', redirectUri);

@@ -3,6 +3,17 @@ import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { OAuth2Client } from 'google-auth-library';
+import { listGoogleAdsClientAccounts } from '@/lib/google-ads';
+
+async function getAgencyId(userId: string): Promise<string | null> {
+  const { data } = await getSupabaseAdmin()
+    .from('agencies')
+    .select('id')
+    .eq('user_id', userId)
+    .limit(1)
+    .single();
+  return data?.id ?? null;
+}
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -11,14 +22,19 @@ export async function GET(req: Request) {
   }
   const { searchParams } = new URL(req.url);
   const code = searchParams.get('code');
-  const state = searchParams.get('state');
-  let clientId: string;
+  const stateParam = searchParams.get('state');
+  let stateObj: { client_id?: string; agency?: boolean } = {};
   try {
-    clientId = state ? JSON.parse(Buffer.from(state, 'base64url').toString()).client_id : '';
-  } catch {
-    clientId = '';
+    stateObj = stateParam ? JSON.parse(Buffer.from(stateParam, 'base64url').toString()) : {};
+  } catch {}
+  const clientId = stateObj.client_id ?? '';
+  const isAgencyFlow = Boolean(stateObj.agency);
+
+  if (!code) {
+    const dest = isAgencyFlow ? '/dashboard/agency?error=oauth_failed' : '/clients?error=oauth_failed';
+    return NextResponse.redirect(new URL(dest, req.url));
   }
-  if (!code || !clientId) {
+  if (!isAgencyFlow && !clientId) {
     return NextResponse.redirect(new URL('/clients?error=oauth_failed', req.url));
   }
 
@@ -35,18 +51,18 @@ export async function GET(req: Request) {
     tokens = t;
   } catch (e) {
     console.error('Google token exchange error:', e);
-    return NextResponse.redirect(new URL(`/clients/${clientId}?error=google_token`, req.url));
+    const dest = isAgencyFlow ? '/dashboard/agency?error=google_token' : `/clients/${clientId}?error=google_token`;
+    return NextResponse.redirect(new URL(dest, req.url));
   }
   if (!tokens.access_token) {
-    return NextResponse.redirect(new URL(`/clients/${clientId}?error=google_token`, req.url));
+    const dest = isAgencyFlow ? '/dashboard/agency?error=google_token' : `/clients/${clientId}?error=google_token`;
+    return NextResponse.redirect(new URL(dest, req.url));
   }
 
-  let customerId: string | null = null;
   const devToken = process.env.GOOGLE_DEVELOPER_TOKEN;
+  let managerCustomerId: string | null = null;
   try {
-    const headers: Record<string, string> = {
-      Authorization: `Bearer ${tokens.access_token}`,
-    };
+    const headers: Record<string, string> = { Authorization: `Bearer ${tokens.access_token}` };
     if (devToken) headers['developer-token'] = devToken;
     const res = await fetch('https://googleads.googleapis.com/v16/customers:listAccessibleCustomers', {
       method: 'GET',
@@ -55,16 +71,67 @@ export async function GET(req: Request) {
     const data = (await res.json()) as { resourceNames?: string[] };
     const ids = data?.resourceNames ?? [];
     if (ids.length >= 1) {
-      customerId = ids[0].replace('customers/', '');
+      managerCustomerId = ids[0].replace('customers/', '').replace(/-/g, '');
     }
   } catch {
-    customerId = null;
+    managerCustomerId = null;
   }
 
-  const expiresAt = tokens.expiry_date
-    ? new Date(tokens.expiry_date).toISOString()
-    : null;
-  await getSupabaseAdmin().from('api_tokens').upsert(
+  const expiresAt = tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null;
+  const supabase = getSupabaseAdmin();
+
+  if (isAgencyFlow) {
+    const agencyId = await getAgencyId(session.user.id);
+    if (!agencyId) {
+      return NextResponse.redirect(new URL('/dashboard/agency?error=no_agency', req.url));
+    }
+    await supabase.from('agency_tokens').upsert(
+      {
+        agency_id: agencyId,
+        platform: 'google_ads',
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token ?? null,
+        token_expires_at: expiresAt,
+        account_id: managerCustomerId,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'agency_id,platform' }
+    );
+    if (managerCustomerId && devToken) {
+      const clients = await listGoogleAdsClientAccounts(managerCustomerId, tokens.access_token);
+      for (const c of clients) {
+        const { data: existing } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('agency_id', agencyId)
+          .eq('google_ads_customer_id', c.id)
+          .limit(1)
+          .single();
+        if (existing) continue;
+        const { data: byName } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('agency_id', agencyId)
+          .ilike('client_name', c.descriptive_name)
+          .limit(1)
+          .single();
+        if (byName?.id) {
+          await supabase.from('clients').update({ google_ads_customer_id: c.id, google_ads_connected: true }).eq('id', byName.id);
+        } else {
+          await supabase.from('clients').insert({
+            agency_id: agencyId,
+            client_name: c.descriptive_name,
+            google_ads_customer_id: c.id,
+            google_ads_connected: true,
+          });
+        }
+      }
+    }
+    return NextResponse.redirect(new URL('/dashboard/agency?success=google_connected', req.url));
+  }
+
+  const customerId = managerCustomerId;
+  await supabase.from('api_tokens').upsert(
     {
       client_id: clientId,
       platform: 'google_ads',
@@ -76,10 +143,7 @@ export async function GET(req: Request) {
     },
     { onConflict: 'client_id,platform' }
   );
-  await getSupabaseAdmin()
-    .from('clients')
-    .update({ google_ads_connected: true })
-    .eq('id', clientId);
+  await supabase.from('clients').update({ google_ads_connected: true, google_ads_customer_id: customerId }).eq('id', clientId);
 
   return NextResponse.redirect(new URL(`/clients/${clientId}?success=google_connected`, req.url));
 }

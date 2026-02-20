@@ -9,18 +9,15 @@ export async function GET(req: Request) {
   }
   const { searchParams } = new URL(req.url);
   const clientId = searchParams.get('client_id');
-  if (!clientId) {
-    return NextResponse.redirect(new URL('/clients?error=missing_client', req.url));
-  }
+  const origin = new URL(req.url).origin;
   const appId = process.env.META_APP_ID;
   if (!appId) {
-    return NextResponse.redirect(new URL(`/clients/${clientId}?error=meta_not_configured`, req.url));
+    const dest = clientId ? `/clients/${clientId}?error=meta_not_configured` : '/dashboard/agency?error=meta_not_configured';
+    return NextResponse.redirect(new URL(dest, origin));
   }
-  const origin = new URL(req.url).origin;
   const redirectUri = `${origin}/api/auth/meta/callback`;
-  const state = Buffer.from(JSON.stringify({ client_id: clientId })).toString('base64url');
-  // Facebook Login accepts public_profile, business_management, ads_management.
-  // ads_read is invalid in the OAuth dialog; ads_management grants read access for ad accounts.
+  const stateObj: { client_id?: string; agency?: boolean } = clientId ? { client_id: clientId } : { agency: true };
+  const state = Buffer.from(JSON.stringify(stateObj)).toString('base64url');
   const scope = 'public_profile,business_management,ads_management';
   const url = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${state}`;
   return NextResponse.redirect(url);

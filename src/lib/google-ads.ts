@@ -16,6 +16,46 @@ export async function getValidAccessToken(
   return credentials.access_token ?? accessToken;
 }
 
+/** Listează conturile client (non-manager) din Manager Account; folosit după OAuth agenție pentru import. */
+export async function listGoogleAdsClientAccounts(
+  managerCustomerId: string,
+  accessToken: string
+): Promise<{ id: string; descriptive_name: string }[]> {
+  const devToken = process.env.GOOGLE_DEVELOPER_TOKEN;
+  if (!devToken) return [];
+  const query = `
+    SELECT customer_client.id, customer_client.descriptive_name
+    FROM customer_client
+    WHERE customer_client.status = 'ENABLED' AND customer_client.manager = FALSE
+  `;
+  const url = `https://googleads.googleapis.com/v16/customers/${managerCustomerId.replace(/-/g, '')}/googleAds:search`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'developer-token': devToken,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query }),
+  });
+  if (!res.ok) {
+    console.error('Google Ads list clients error', res.status, await res.text());
+    return [];
+  }
+  const data = (await res.json()) as {
+    results?: { customerClient?: { id?: string; descriptiveName?: string } }[];
+  };
+  const results = data?.results ?? [];
+  return results
+    .map((r) => {
+      const idRaw = r.customerClient?.id ?? '';
+      const name = r.customerClient?.descriptiveName ?? 'Cont Google Ads';
+      const id = idRaw.includes('/') ? idRaw.split('/').pop() ?? idRaw : idRaw;
+      return id ? { id: id.replace(/-/g, ''), descriptive_name: name } : null;
+    })
+    .filter((x): x is { id: string; descriptive_name: string } => Boolean(x));
+}
+
 export interface GoogleAdsMetrics {
   impressions: number;
   clicks: number;

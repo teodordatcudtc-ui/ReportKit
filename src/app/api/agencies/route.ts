@@ -33,7 +33,8 @@ export async function GET() {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const { data, error } = await getSupabaseAdmin()
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
     .from('agencies')
     .select('*')
     .eq('user_id', session.user.id)
@@ -43,7 +44,14 @@ export async function GET() {
   if (error && error.code !== 'PGRST116') {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json(data ?? null);
+  if (!data) return NextResponse.json(null);
+  const { data: tokens } = await supabase.from('agency_tokens').select('platform').eq('agency_id', data.id);
+  const googleConnected = (tokens ?? []).some((t: { platform: string }) => t.platform === 'google_ads');
+  const metaConnected = (tokens ?? []).some((t: { platform: string }) => t.platform === 'meta_ads');
+  return NextResponse.json({
+    ...data,
+    integrations: { google_ads: googleConnected, meta_ads: metaConnected },
+  });
 }
 
 export async function POST(req: Request) {

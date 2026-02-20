@@ -25,6 +25,7 @@ function stripDiacritics(s: string): string {
 const styles = StyleSheet.create({
   page: {
     padding: 40,
+    paddingBottom: 100,
     fontFamily: 'Helvetica',
     fontSize: 10,
   },

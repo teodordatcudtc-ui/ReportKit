@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { getPlanLimit } from '@/lib/plans';
 import { ReportPreview } from '@/components/ReportPreview';
 import {
@@ -28,6 +29,7 @@ interface Agency {
   contact_phone: string | null;
   plan?: string | null;
   report_settings?: unknown;
+  integrations?: { google_ads: boolean; meta_ads: boolean };
 }
 
 interface ScheduledRow {
@@ -45,7 +47,8 @@ interface Client {
   client_name: string;
 }
 
-export default function AgencySettingsPage() {
+function AgencySettingsContent() {
+  const searchParams = useSearchParams();
   const [agency, setAgency] = useState<Agency | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -101,6 +104,27 @@ export default function AgencySettingsPage() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const err = searchParams.get('error');
+    if (success === 'google_connected') {
+      setMessage('Google Ads conectat. Clientii din Manager Account au fost importati.');
+      setError('');
+    } else if (success === 'meta_connected') {
+      setMessage('Meta Ads conectat. Ad account-urile au fost importate ca clienti.');
+      setError('');
+    } else if (success === 'google_disconnected') {
+      setMessage('Google Ads deconectat.');
+      setError('');
+    } else if (success === 'meta_disconnected') {
+      setMessage('Meta Ads deconectat.');
+      setError('');
+    } else if (err) {
+      setError(err === 'oauth_failed' ? 'Autorizare esuata.' : err === 'no_agency' ? 'Agenție negăsită.' : 'Eroare.');
+      setMessage('');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (agency && getPlanLimit(agency.plan).scheduledEmail) {
@@ -340,6 +364,63 @@ export default function AgencySettingsPage() {
         </section>
 
         <section className="bg-white border border-slate-200 rounded-rk-lg shadow-rk p-5 space-y-4">
+          <h2 className="text-base font-semibold text-slate-900">Integrari</h2>
+          <p className="text-xs text-slate-500">
+            Conectezi o singura data contul Manager (Google Ads) sau Business Manager (Meta). Clientii din cont vor fi importati automat.
+          </p>
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 py-3 border-b border-slate-100">
+              <div>
+                <p className="font-medium text-slate-800">Google Ads (Manager Account)</p>
+                <p className="text-sm text-slate-500">
+                  {agency.integrations?.google_ads ? 'Conectat – clientii din Manager Account sunt importati' : 'Neconectat'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {agency.integrations?.google_ads ? (
+                  <form action="/api/auth/google/disconnect-agency" method="POST" className="inline">
+                    <button type="submit" className="text-sm text-slate-500 hover:text-red-600 font-medium">
+                      Deconectare
+                    </button>
+                  </form>
+                ) : (
+                  <a
+                    href="/api/auth/google/connect"
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+                  >
+                    Conecteaza Google Ads Manager
+                  </a>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <div>
+                <p className="font-medium text-slate-800">Meta Ads (Business Manager)</p>
+                <p className="text-sm text-slate-500">
+                  {agency.integrations?.meta_ads ? 'Conectat – ad account-urile sunt importate ca clienti' : 'Neconectat'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {agency.integrations?.meta_ads ? (
+                  <form action="/api/auth/meta/disconnect-agency" method="POST" className="inline">
+                    <button type="submit" className="text-sm text-slate-500 hover:text-red-600 font-medium">
+                      Deconectare
+                    </button>
+                  </form>
+                ) : (
+                  <a
+                    href="/api/auth/meta/connect"
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+                  >
+                    Conecteaza Meta Ads
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-white border border-slate-200 rounded-rk-lg shadow-rk p-5 space-y-4">
           <h2 className="text-base font-semibold text-slate-900">Campuri in raport PDF</h2>
           <p className="text-xs text-slate-500">
             Bifeaza ce metrici si sectiuni sa apara in rapoartele generate. Debifate nu vor fi afisate in PDF.
@@ -518,5 +599,13 @@ export default function AgencySettingsPage() {
         />
       </div>
     </div>
+  );
+}
+
+export default function AgencySettingsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[40vh]"><div className="animate-pulse text-slate-500 text-sm font-medium">Se încarcă…</div></div>}>
+      <AgencySettingsContent />
+    </Suspense>
   );
 }

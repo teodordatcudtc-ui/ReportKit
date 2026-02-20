@@ -28,7 +28,7 @@ export async function generateReportPdfBuffer(
 
   const { data: client, error: clientErr } = await supabase
     .from('clients')
-    .select('client_name, google_ads_connected, meta_ads_connected')
+    .select('client_name, google_ads_connected, meta_ads_connected, google_ads_customer_id, meta_ad_account_id')
     .eq('id', clientId)
     .eq('agency_id', agencyId)
     .single();
@@ -43,9 +43,22 @@ export async function generateReportPdfBuffer(
 
   const reportSettings = normalizeReportSettings(reportSettingsOverride ?? agency.report_settings ?? null);
 
-  const { data: tokens } = await supabase.from('api_tokens').select('*').eq('client_id', clientId);
-  const googleToken = (tokens ?? []).find((t: { platform: string }) => t.platform === 'google_ads');
-  const metaToken = (tokens ?? []).find((t: { platform: string }) => t.platform === 'meta_ads');
+  const { data: agencyTokens } = await supabase.from('agency_tokens').select('*').eq('agency_id', agencyId);
+  const agencyGoogle = (agencyTokens ?? []).find((t: { platform: string }) => t.platform === 'google_ads');
+  const agencyMeta = (agencyTokens ?? []).find((t: { platform: string }) => t.platform === 'meta_ads');
+
+  const { data: clientTokens } = await supabase.from('api_tokens').select('*').eq('client_id', clientId);
+  const clientGoogle = (clientTokens ?? []).find((t: { platform: string }) => t.platform === 'google_ads');
+  const clientMeta = (clientTokens ?? []).find((t: { platform: string }) => t.platform === 'meta_ads');
+
+  const googleToken =
+    client.google_ads_customer_id && agencyGoogle
+      ? { ...agencyGoogle, account_id: client.google_ads_customer_id }
+      : clientGoogle;
+  const metaToken =
+    client.meta_ad_account_id && agencyMeta
+      ? { ...agencyMeta, account_id: client.meta_ad_account_id }
+      : clientMeta;
 
   const reportData: { google?: GoogleMetrics; meta?: MetaMetrics } = {};
   let googleDeviceBreakdown: { device: string; impressions: number; clicks: number; cost_micros: number }[] = [];
