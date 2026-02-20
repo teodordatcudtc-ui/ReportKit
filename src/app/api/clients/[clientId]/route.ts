@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
+import { z } from 'zod';
 
 async function canAccessClient(userId: string, clientId: string): Promise<boolean> {
   const { data: agency } = await getSupabaseAdmin()
@@ -51,4 +52,36 @@ export async function GET(
     tokens: tokens ?? [],
     reports: reports ?? [],
   });
+}
+
+const patchSchema = z.object({
+  report_settings: z.record(z.string(), z.unknown()).optional(),
+  skip_report_modal: z.boolean().optional(),
+});
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ clientId: string }> }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { clientId } = await params;
+  if (!(await canAccessClient(session.user.id, clientId))) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+  const body = await req.json().catch(() => ({}));
+  const parsed = patchSchema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
+  const updates: Record<string, unknown> = {};
+  if (parsed.data.report_settings !== undefined) updates.report_settings = parsed.data.report_settings;
+  if (parsed.data.skip_report_modal !== undefined) updates.skip_report_modal = parsed.data.skip_report_modal;
+  if (Object.keys(updates).length === 0) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
+  const { data, error } = await getSupabaseAdmin()
+    .from('clients')
+    .update(updates)
+    .eq('id', clientId)
+    .select()
+    .single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
 }

@@ -15,9 +15,16 @@ import { normalizeReportSettings } from '@/lib/report-settings';
 
 export async function generateReportPdfBuffer(
   supabase: SupabaseClient,
-  params: { agencyId: string; clientId: string; dateStart: string; dateEnd: string }
+  params: {
+    agencyId: string;
+    clientId: string;
+    dateStart: string;
+    dateEnd: string;
+    /** Override: setari raport (din client sau din body la generare); daca lipseste, se foloseste agency.report_settings */
+    reportSettingsOverride?: unknown;
+  }
 ): Promise<{ buffer: Buffer; clientName: string; agencyName: string }> {
-  const { agencyId, clientId, dateStart, dateEnd } = params;
+  const { agencyId, clientId, dateStart, dateEnd, reportSettingsOverride } = params;
 
   const { data: client, error: clientErr } = await supabase
     .from('clients')
@@ -34,7 +41,7 @@ export async function generateReportPdfBuffer(
     .single();
   if (agencyErr || !agency) throw new Error('Agency not found');
 
-  const reportSettings = normalizeReportSettings(agency.report_settings ?? null);
+  const reportSettings = normalizeReportSettings(reportSettingsOverride ?? agency.report_settings ?? null);
 
   const { data: tokens } = await supabase.from('api_tokens').select('*').eq('client_id', clientId);
   const googleToken = (tokens ?? []).find((t: { platform: string }) => t.platform === 'google_ads');
@@ -109,6 +116,9 @@ export async function generateReportPdfBuffer(
         if (g.search_impression_share != null) reportData.google.search_impression_share = g.search_impression_share;
         if (g.top_of_page_rate != null) reportData.google.top_of_page_rate = g.top_of_page_rate;
         if (g.quality_score != null) reportData.google.quality_score = g.quality_score;
+        if (g.conversions_value != null) reportData.google.conversion_value = g.conversions_value;
+        if (g.roas != null) reportData.google.roas = g.roas;
+        if (g.cpa != null) reportData.google.cpa = g.cpa;
       } catch {
         reportData.google = zeroGoogleMetrics;
       }
@@ -136,6 +146,9 @@ export async function generateReportPdfBuffer(
     if (metaMetrics.cpm != null) reportData.meta.cpm = metaMetrics.cpm;
     if (metaMetrics.engagement_rate != null) reportData.meta.engagement_rate = metaMetrics.engagement_rate;
     if (metaMetrics.video_views != null) reportData.meta.video_views = metaMetrics.video_views;
+    if (metaMetrics.video_p25 != null) reportData.meta.video_p25 = metaMetrics.video_p25;
+    if (metaMetrics.video_p50 != null) reportData.meta.video_p50 = metaMetrics.video_p50;
+    if (metaMetrics.video_p100 != null) reportData.meta.video_p100 = metaMetrics.video_p100;
     for (const row of metaDailyRows) {
       const key = row.date;
       if (!dailyTrendByDate[key]) {

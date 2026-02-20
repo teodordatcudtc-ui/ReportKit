@@ -12,6 +12,9 @@ export const GOOGLE_REPORT_KEYS = [
   'top_of_page_rate',
   'device_breakdown',
   'geographic_performance',
+  'roas',
+  'conversion_value',
+  'cpa',
 ] as const;
 
 export const META_REPORT_KEYS = [
@@ -27,6 +30,9 @@ export const META_REPORT_KEYS = [
   'cpm',
   'engagement_rate',
   'video_views',
+  'video_p25',
+  'video_p50',
+  'video_p100',
 ] as const;
 
 export const REPORT_CHART_KEYS = ['device_breakdown', 'performance_trend'] as const;
@@ -44,6 +50,9 @@ export const GOOGLE_LABELS: Record<GoogleReportKey, string> = {
   top_of_page_rate: 'Top of page rate',
   device_breakdown: 'Performanță pe device (Mobil/Desktop)',
   geographic_performance: 'Performanță geografică',
+  roas: 'ROAS (Return on Ad Spend)',
+  conversion_value: 'Valoare conversii',
+  cpa: 'Cost per conversie (CPA)',
 };
 
 export const META_LABELS: Record<MetaReportKey, string> = {
@@ -59,6 +68,9 @@ export const META_LABELS: Record<MetaReportKey, string> = {
   cpm: 'CPM',
   engagement_rate: 'Rata de engagement',
   video_views: 'Vizionări video',
+  video_p25: 'Video 25% vizionat',
+  video_p50: 'Video 50% vizionat',
+  video_p100: 'Video 100% vizionat',
 };
 
 export const CHART_LABELS: Record<ReportChartKey, string> = {
@@ -89,6 +101,9 @@ const defaultGoogle: Record<GoogleReportKey, boolean> = {
   top_of_page_rate: true,
   device_breakdown: true,
   geographic_performance: true,
+  roas: true,
+  conversion_value: true,
+  cpa: true,
 };
 
 const defaultMeta: Record<MetaReportKey, boolean> = {
@@ -104,6 +119,9 @@ const defaultMeta: Record<MetaReportKey, boolean> = {
   cpm: true,
   engagement_rate: true,
   video_views: true,
+  video_p25: true,
+  video_p50: true,
+  video_p100: true,
 };
 
 const defaultCharts: Record<ReportChartKey, boolean> = {

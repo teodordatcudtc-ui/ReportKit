@@ -17,6 +17,12 @@ export interface MetaAdsMetrics {
   engagement_rate?: number;
   /** Video views (25% sau 3s) */
   video_views?: number;
+  /** Video 25% vizionat */
+  video_p25?: number;
+  /** Video 50% vizionat */
+  video_p50?: number;
+  /** Video 100% vizionat */
+  video_p100?: number;
 }
 
 export async function fetchMetaAdsData(
@@ -64,7 +70,10 @@ export async function fetchMetaAdsData(
       cpm = 0,
       linkClicks = 0,
       engagement = 0,
-      videoViews = 0;
+      videoViews = 0,
+      videoP25 = 0,
+      videoP50 = 0,
+      videoP100 = 0;
     for (const row of rows) {
       impressions += Number(row.impressions ?? 0);
       clicks += Number(row.clicks ?? 0);
@@ -93,6 +102,12 @@ export async function fetchMetaAdsData(
           a.action_type === 'video_view_3s'
         ) {
           videoViews += val;
+        } else if (a.action_type === 'video_p25_watched_actions') {
+          videoP25 += val;
+        } else if (a.action_type === 'video_p50_watched_actions') {
+          videoP50 += val;
+        } else if (a.action_type === 'video_p100_watched_actions') {
+          videoP100 += val;
         }
       }
     }
@@ -113,6 +128,9 @@ export async function fetchMetaAdsData(
       out.engagement_rate = impressions > 0 ? ((engagement + videoViews) / impressions) * 100 : 0;
       out.video_views = videoViews;
     }
+    if (videoP25 > 0) out.video_p25 = videoP25;
+    if (videoP50 > 0) out.video_p50 = videoP50;
+    if (videoP100 > 0) out.video_p100 = videoP100;
     return out;
   } catch (e) {
     console.error('Meta Ads fetch error:', e);

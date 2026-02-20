@@ -6,6 +6,8 @@ import {
   View,
   StyleSheet,
   Image,
+  Svg,
+  Polyline,
 } from '@react-pdf/renderer';
 
 /** Elimina diacriticele din text ca sa apara corect in PDF (fontul nu afiseaza diacritice). */
@@ -152,6 +154,9 @@ export interface GoogleMetrics {
   impression_share?: number | null;
   search_impression_share?: number | null;
   top_of_page_rate?: number | null;
+  conversion_value?: number | null;
+  roas?: number | null;
+  cpa?: number | null;
 }
 
 export interface MetaMetrics {
@@ -167,6 +172,9 @@ export interface MetaMetrics {
   cpm?: number;
   engagement_rate?: number;
   video_views?: number;
+  video_p25?: number;
+  video_p50?: number;
+  video_p100?: number;
 }
 
 export interface DeviceRow {
@@ -303,6 +311,15 @@ export function ReportPDF({
               {showG('top_of_page_rate') && (
                 <MetricCard label="Top of page rate" value={g.top_of_page_rate != null ? `${(g.top_of_page_rate * 100).toFixed(1)}%` : '–'} />
               )}
+              {showG('conversion_value') && (
+                <MetricCard label="Valoare conversii" value={g.conversion_value != null ? `$${g.conversion_value.toFixed(2)}` : '–'} />
+              )}
+              {showG('roas') && (
+                <MetricCard label="ROAS" value={g.roas != null ? g.roas.toFixed(2) : '–'} />
+              )}
+              {showG('cpa') && (
+                <MetricCard label="CPA" value={g.cpa != null ? `$${g.cpa.toFixed(2)}` : '–'} />
+              )}
             </View>
             {showC('device_breakdown') && (
               <View style={{ marginTop: 8 }}>
@@ -368,6 +385,9 @@ export function ReportPDF({
               {showM('cpm') && <MetricCard label="CPM" value={m.cpm != null ? `$${m.cpm.toFixed(2)}` : '–'} />}
               {showM('engagement_rate') && <MetricCard label="Engagement rate" value={m.engagement_rate != null ? `${m.engagement_rate.toFixed(2)}%` : '–'} />}
               {showM('video_views') && <MetricCard label="Vizionari video" value={m.video_views != null ? m.video_views.toLocaleString() : '–'} />}
+              {showM('video_p25') && <MetricCard label="Video 25%" value={m.video_p25 != null ? m.video_p25.toLocaleString() : '–'} />}
+              {showM('video_p50') && <MetricCard label="Video 50%" value={m.video_p50 != null ? m.video_p50.toLocaleString() : '–'} />}
+              {showM('video_p100') && <MetricCard label="Video 100%" value={m.video_p100 != null ? m.video_p100.toLocaleString() : '–'} />}
             </View>
           </View>
         ) : null}
@@ -375,23 +395,37 @@ export function ReportPDF({
         {showC('performance_trend') && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{stripDiacritics('Evolutie cheltuieli (pe zi)')}</Text>
-            {dailyTrend && dailyTrend.length > 0 ? dailyTrend.slice(-14).map((row) => (
-              <View key={row.date} style={styles.chartRow}>
-                <Text style={styles.chartLabel}>{row.date}</Text>
-                <View style={[styles.chartBar, { flex: 1 }]}>
-                  <View
-                    style={[
-                      styles.chartBarFill,
-                      {
-                        width: `${Math.round((row.spend / maxTrendSpend) * 100)}%`,
-                        backgroundColor: brandColor,
-                      },
-                    ]}
-                  />
+            {dailyTrend && dailyTrend.length > 0 ? (
+              <>
+                <View style={{ marginBottom: 6 }}>
+                  <Svg width="100%" height={100} viewBox="0 0 400 80" preserveAspectRatio="none">
+                    <Polyline
+                      points={(() => {
+                        const slice = dailyTrend.slice(-14);
+                        const n = slice.length;
+                        const step = n > 1 ? 400 / (n - 1) : 0;
+                        return slice
+                          .map((row, i) => {
+                            const x = n > 1 ? i * step : 200;
+                            const y = 78 - (row.spend / maxTrendSpend) * 72;
+                            return `${x},${y}`;
+                          })
+                          .join(' ');
+                      })()}
+                      stroke={brandColor}
+                      strokeWidth={2}
+                      fill="none"
+                    />
+                  </Svg>
                 </View>
-                <Text style={{ fontSize: 8 }}>${row.spend.toFixed(0)}</Text>
-              </View>
-            )) : (
+                {dailyTrend.slice(-14).map((row) => (
+                  <View key={row.date} style={styles.chartRow}>
+                    <Text style={styles.chartLabel}>{row.date}</Text>
+                    <Text style={{ fontSize: 8 }}>${row.spend.toFixed(0)}</Text>
+                  </View>
+                ))}
+              </>
+            ) : (
               <Text style={{ fontSize: 9, color: '#64748b' }}>{stripDiacritics('Nu exista date zilnice pentru aceasta perioada.')}</Text>
             )}
           </View>

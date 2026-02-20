@@ -31,6 +31,12 @@ export interface GoogleAdsMetrics {
   search_impression_share?: number | null;
   /** Top of page rate (search top impression share) */
   top_of_page_rate?: number | null;
+  /** Valoare totală conversii (din API) */
+  conversions_value?: number | null;
+  /** ROAS = conversions_value / cost */
+  roas?: number | null;
+  /** Cost per conversie (CPA) = cost / conversions */
+  cpa?: number | null;
 }
 
 export interface GoogleAdsDeviceRow {
@@ -54,17 +60,21 @@ function getMockGoogleAdsMetrics(dateStart: string, dateEnd: string): GoogleAdsM
   const clicks = 340 * days;
   const costMicros = 85_000_000 * days; // 85 RON
   const conversions = 12 * days;
+  const costRon = costMicros / 1_000_000;
   return {
     impressions,
     clicks,
     cost_micros: costMicros,
     conversions,
-    ctr: clicks / impressions,
-    average_cpc: costMicros / clicks,
+    ctr: impressions ? clicks / impressions : 0,
+    average_cpc: clicks ? costMicros / clicks : 0,
     quality_score: 7.2,
     impression_share: 0.42,
     search_impression_share: 0.38,
     top_of_page_rate: 0.31,
+    conversions_value: 425,
+    roas: costRon ? 425 / costRon : null,
+    cpa: conversions ? costRon / conversions : null,
   };
 }
 
@@ -114,6 +124,7 @@ export async function fetchGoogleAdsData(
       metrics.clicks,
       metrics.cost_micros,
       metrics.conversions,
+      metrics.conversions_value,
       metrics.ctr,
       metrics.average_cpc,
       metrics.search_impression_share,
@@ -149,6 +160,7 @@ export async function fetchGoogleAdsData(
       clicks?: string;
       costMicros?: string;
       conversions?: string;
+      conversionsValue?: string;
       ctr?: string;
       averageCpc?: string;
       searchImpressionShare?: string;
@@ -161,6 +173,7 @@ export async function fetchGoogleAdsData(
     clicks = 0,
     costMicros = 0,
     conversions = 0,
+    conversionsValue = 0,
     ctr = 0,
     averageCpc = 0,
     searchImpressionShareSum = 0,
@@ -173,6 +186,7 @@ export async function fetchGoogleAdsData(
       clicks += Number(m.clicks ?? 0);
       costMicros += Number(m.costMicros ?? 0);
       conversions += Number(m.conversions ?? 0);
+      conversionsValue += Number(m.conversionsValue ?? 0);
       ctr += Number(m.ctr ?? 0);
       averageCpc += Number(m.averageCpc ?? 0);
       const sisVal = Number(m.searchImpressionShare ?? 0);
@@ -187,6 +201,7 @@ export async function fetchGoogleAdsData(
     }
   }
   const count = results.length || 1;
+  const costRon = costMicros / 1_000_000;
   const out: GoogleAdsMetrics = {
     impressions,
     clicks,
@@ -200,6 +215,9 @@ export async function fetchGoogleAdsData(
     out.search_impression_share = searchImpressionShareSum / shareCount;
     out.top_of_page_rate = searchTopSum / shareCount;
   }
+  if (conversionsValue > 0) out.conversions_value = conversionsValue;
+  if (costRon > 0) out.roas = conversionsValue / costRon;
+  if (conversions > 0) out.cpa = costRon / conversions;
   return out;
 }
 

@@ -21,6 +21,9 @@ Toate câmpurile din raportul PDF sunt preluate din **Google Ads API** și **Met
 | Impression Share      | `metrics.search_impression_share` (campaign) | La campaign nu există „impression_share” generic; folosim Search impression share |
 | Search Impression Share | `metrics.search_impression_share` (campaign) | |
 | Top of page rate      | `metrics.search_top_impression_share` (campaign) | |
+| Valoare conversii     | `metrics.conversions_value` (campaign) | Suma valorilor conversiilor |
+| ROAS                  | Calculat: `conversions_value / cost` | Return on Ad Spend |
+| CPA                   | Calculat: `cost / conversions` | Cost per conversie |
 | Performanță pe device | `segments.device` + metrics (campaign) | MOBILE, DESKTOP, TABLET etc. |
 | Performanță geografică | `segments.geoTargetCountry` (campaign) | Agregat pe țară |
 
@@ -45,10 +48,13 @@ Toate câmpurile din raportul PDF sunt preluate din **Google Ads API** și **Met
 | CPM               | `cpm` | Cost per 1000 impresii |
 | Engagement rate   | Calculat: (post_engagement + video_view) / impressions × 100 | `actions`: post_engagement, video_view |
 | Vizionări video   | `actions` unde `action_type` ∈ video_view, video_view_3s, video_view_15s | Suma valorilor |
+| Video 25%         | `actions` unde `action_type` = video_p25_watched_actions | |
+| Video 50%         | `actions` unde `action_type` = video_p50_watched_actions | |
+| Video 100%        | `actions` unde `action_type` = video_p100_watched_actions | |
 
 ---
 
 ## Grafice în raport
 
 - **Performanță pe device:** date din Google Ads (segments.device + metrics), afișate ca bare.
-- **Evoluție cheltuieli (pe zi):** date zilnice din Google Ads (`fetchGoogleAdsDaily`) și Meta (`fetchMetaAdsDaily`), combinate pe dată.
+- **Evoluție cheltuieli (pe zi):** date zilnice din Google Ads și Meta, combinate pe dată; afișate ca **line chart** (polyline) + listă date/cheltuieli.

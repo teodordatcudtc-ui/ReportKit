@@ -10,6 +10,7 @@ const bodySchema = z.object({
   client_id: z.string().uuid(),
   date_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   date_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  report_settings: z.record(z.string(), z.unknown()).optional(),
 });
 
 async function canAccessClient(userId: string, clientId: string): Promise<{ agencyId: string; plan: string | null } | null> {
@@ -38,24 +39,29 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
-  const { client_id, date_start, date_end } = parsed.data;
+  const { client_id, date_start, date_end, report_settings: bodyReportSettings } = parsed.data;
   const access = await canAccessClient(session.user.id, client_id);
   if (!access) {
     return NextResponse.json({ error: 'Client not found' }, { status: 404 });
   }
+  const supabase = getSupabaseAdmin();
+  const { data: clientRow } = await supabase.from('clients').select('report_settings').eq('id', client_id).single();
+  const { data: agencyRow } = await supabase.from('agencies').select('report_settings').eq('id', access.agencyId).single();
+  const reportSettingsOverride =
+    bodyReportSettings ?? (clientRow?.report_settings as Record<string, unknown> | null) ?? (agencyRow?.report_settings as Record<string, unknown> | null);
 
   const limits = getPlanLimit(access.plan);
   if (limits.maxReportsPerMonth !== Infinity) {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
-    const { data: clientIds } = await getSupabaseAdmin()
+    const { data: clientIds } = await supabase
       .from('clients')
       .select('id')
       .eq('agency_id', access.agencyId);
     const ids = (clientIds ?? []).map((c) => c.id);
     const { count } = ids.length
-      ? await getSupabaseAdmin()
+      ? await supabase
           .from('reports')
           .select('id', { count: 'exact', head: true })
           .in('client_id', ids)
@@ -72,11 +78,12 @@ export async function POST(req: Request) {
 
   let pdfBuffer: Buffer;
   try {
-    const result = await generateReportPdfBuffer(getSupabaseAdmin(), {
+    const result = await generateReportPdfBuffer(supabase, {
       agencyId: access.agencyId,
       clientId: client_id,
       dateStart: date_start,
       dateEnd: date_end,
+      reportSettingsOverride: reportSettingsOverride ?? undefined,
     });
     pdfBuffer = result.buffer;
   } catch (e) {
@@ -85,7 +92,7 @@ export async function POST(req: Request) {
   }
 
   const fileName = `${client_id}_${date_start}_${date_end}.pdf`;
-  const { error: uploadError } = await getSupabaseAdmin().storage
+  const { error: uploadError } = await supabase.storage
     .from('reports')
     .upload(fileName, pdfBuffer, {
       contentType: 'application/pdf',
@@ -95,10 +102,10 @@ export async function POST(req: Request) {
     console.error('Supabase upload error:', uploadError);
     return NextResponse.json({ error: 'Failed to save PDF' }, { status: 500 });
   }
-  const { data: urlData } = getSupabaseAdmin().storage.from('reports').getPublicUrl(fileName);
+  const { data: urlData } = supabase.storage.from('reports').getPublicUrl(fileName);
   const pdfUrl = urlData?.publicUrl ?? '';
 
-  const { data: report, error: insertError } = await getSupabaseAdmin()
+  const { data: report, error: insertError } = await supabase
     .from('reports')
     .insert({
       client_id,

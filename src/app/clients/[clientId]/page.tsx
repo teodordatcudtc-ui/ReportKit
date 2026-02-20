@@ -4,12 +4,28 @@ import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { ClientPerformanceCharts, type PlatformMetrics } from '@/components/ClientPerformanceCharts';
+import {
+  normalizeReportSettings,
+  getDefaultReportSettings,
+  GOOGLE_REPORT_KEYS,
+  META_REPORT_KEYS,
+  REPORT_CHART_KEYS,
+  GOOGLE_LABELS,
+  META_LABELS,
+  CHART_LABELS,
+  type ReportSettings,
+  type GoogleReportKey,
+  type MetaReportKey,
+  type ReportChartKey,
+} from '@/lib/report-settings';
 
 interface ClientDetail {
   id: string;
   client_name: string;
   google_ads_connected: boolean;
   meta_ads_connected: boolean;
+  report_settings?: unknown;
+  skip_report_modal?: boolean;
   tokens: { platform: string; account_id: string | null }[];
   reports: {
     id: string;
@@ -28,9 +44,13 @@ function ClientDetailContent() {
   const [client, setClient] = useState<ClientDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportModalFull, setReportModalFull] = useState(false);
+  const [clientReportSettings, setClientReportSettings] = useState<ReportSettings>(getDefaultReportSettings());
+  const [dontShowAgain, setDontShowAgain] = useState(false);
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
   const [generateError, setGenerateError] = useState('');
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [sendReportId, setSendReportId] = useState<string | null>(null);
@@ -52,6 +72,7 @@ function ClientDetailContent() {
       .then((r) => r.json())
       .then((data) => {
         setClient(data);
+        setClientReportSettings(normalizeReportSettings(data?.report_settings ?? null));
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -132,10 +153,52 @@ function ClientDetailContent() {
     }, 2000);
   }
 
+  function openReportModal(full: boolean) {
+    setReportModalFull(full);
+    setReportModalOpen(true);
+    if (client?.report_settings) setClientReportSettings(normalizeReportSettings(client.report_settings));
+  }
+
+  async function handleSaveReportSettings() {
+    setGenerateError('');
+    setSavingSettings(true);
+    const res = await fetch(`/api/clients/${clientId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ report_settings: clientReportSettings }),
+    });
+    setSavingSettings(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setGenerateError(data.error ?? 'Nu s-au putut salva setările.');
+      return;
+    }
+    const updated = await res.json().catch(() => null);
+    if (updated) setClient(updated);
+    setReportModalOpen(false);
+  }
+
   async function handleGenerateReport(e: React.FormEvent) {
     e.preventDefault();
     setGenerateError('');
     setGenerating(true);
+    if (dontShowAgain && client) {
+      const patchRes = await fetch(`/api/clients/${clientId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report_settings: clientReportSettings, skip_report_modal: true }),
+      });
+      if (patchRes.ok) {
+        const updated = await patchRes.json().catch(() => null);
+        if (updated) {
+          setClient((prev) => ({
+            ...updated,
+            tokens: updated.tokens ?? prev?.tokens ?? [],
+            reports: updated.reports ?? prev?.reports ?? [],
+          }));
+        }
+      }
+    }
     const res = await fetch('/api/reports/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -143,6 +206,7 @@ function ClientDetailContent() {
         client_id: clientId,
         date_start: dateStart,
         date_end: dateEnd,
+        report_settings: clientReportSettings,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -156,7 +220,15 @@ function ClientDetailContent() {
     if (data.pdf_url) window.open(data.pdf_url, '_blank');
     fetch(`/api/clients/${clientId}`)
       .then((r) => r.json())
-      .then(setClient);
+      .then((next) => {
+        setClient((prev) => ({
+          ...next,
+          report_settings: next.report_settings ?? prev?.report_settings,
+          skip_report_modal: next.skip_report_modal !== undefined && next.skip_report_modal !== null
+            ? next.skip_report_modal
+            : prev?.skip_report_modal,
+        }));
+      });
   }
 
   const googleToken = client?.tokens?.find((t) => t.platform === 'google_ads');
@@ -300,22 +372,35 @@ function ClientDetailContent() {
       <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between flex-wrap gap-4">
           <h2 className="font-semibold text-slate-800">Istoric rapoarte</h2>
-          <button
-            id="generate"
-            onClick={() => setReportModalOpen(true)}
-            disabled={!client.google_ads_connected && !client.meta_ads_connected}
-            className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Generează raport nou
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => openReportModal(true)}
+              className="text-sm text-slate-600 hover:text-slate-800 underline"
+            >
+              Configurează raport
+            </button>
+            <button
+              id="generate"
+              onClick={() =>
+                openReportModal(
+                  !(client.skip_report_modal && client.report_settings)
+                )
+              }
+              disabled={!client.google_ads_connected && !client.meta_ads_connected}
+              className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Generează raport nou
+            </button>
+          </div>
         </div>
         <div className="divide-y divide-slate-100">
-          {client.reports.length === 0 ? (
+          {(client.reports?.length ?? 0) === 0 ? (
             <div className="px-5 py-8 text-center text-slate-500 text-sm">
               Niciun raport încă. Conectează cel puțin o platformă de reclame și generează un raport.
             </div>
           ) : (
-            client.reports.map((r) => (
+            (client.reports ?? []).map((r) => (
               <div key={r.id} className="px-5 py-3 flex items-center justify-between gap-4 flex-wrap">
                 <div>
                   <p className="font-medium text-slate-800">
@@ -359,34 +444,129 @@ function ClientDetailContent() {
       </section>
 
       {reportModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg max-w-sm w-full p-6">
-            <h3 className="font-semibold text-slate-800">Generează raport</h3>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto my-4 p-6">
+            <h3 className="font-semibold text-slate-800">
+              {reportModalFull ? 'Configurează și generează raport' : 'Generează raport'}
+            </h3>
             <form onSubmit={handleGenerateReport} className="mt-4 space-y-4">
               {generateError && (
                 <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{generateError}</p>
               )}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Data start</label>
-                <input
-                  type="date"
-                  value={dateStart}
-                  onChange={(e) => setDateStart(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Data start</label>
+                  <input
+                    type="date"
+                    value={dateStart}
+                    onChange={(e) => setDateStart(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Data sfârșit</label>
+                  <input
+                    type="date"
+                    value={dateEnd}
+                    onChange={(e) => setDateEnd(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Data sfârșit</label>
-                <input
-                  type="date"
-                  value={dateEnd}
-                  onChange={(e) => setDateEnd(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                />
-              </div>
-              <div className="flex gap-2 justify-end">
+              {reportModalFull && (
+                <>
+                  <p className="text-sm text-slate-600">Bifează ce metrici și grafice să apară în raportul PDF.</p>
+                  <div className="grid grid-cols-2 gap-4 border-t border-slate-200 pt-4">
+                    <div>
+                      <h4 className="text-sm font-medium text-slate-700 mb-2">Google Ads</h4>
+                      <div className="space-y-1 max-h-48 overflow-y-auto">
+                        {GOOGLE_REPORT_KEYS.map((key) => (
+                          <label key={key} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={clientReportSettings.google?.[key as GoogleReportKey] !== false}
+                              onChange={(e) =>
+                                setClientReportSettings((prev) => ({
+                                  ...prev,
+                                  google: { ...prev.google, [key]: e.target.checked },
+                                }))
+                              }
+                              className="rounded border-slate-300 text-blue-600"
+                            />
+                            {GOOGLE_LABELS[key as GoogleReportKey]}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-slate-700 mb-2">Meta Ads</h4>
+                      <div className="space-y-1 max-h-48 overflow-y-auto">
+                        {META_REPORT_KEYS.map((key) => (
+                          <label key={key} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={clientReportSettings.meta?.[key as MetaReportKey] !== false}
+                              onChange={(e) =>
+                                setClientReportSettings((prev) => ({
+                                  ...prev,
+                                  meta: { ...prev.meta, [key]: e.target.checked },
+                                }))
+                              }
+                              className="rounded border-slate-300 text-blue-600"
+                            />
+                            {META_LABELS[key as MetaReportKey]}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-slate-700 mb-2">Grafice</h4>
+                    <div className="space-y-1">
+                      {REPORT_CHART_KEYS.map((key) => (
+                        <label key={key} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={clientReportSettings.charts?.[key as ReportChartKey] !== false}
+                            onChange={(e) =>
+                              setClientReportSettings((prev) => ({
+                                ...prev,
+                                charts: { ...prev.charts, [key]: e.target.checked },
+                              }))
+                            }
+                            className="rounded border-slate-300 text-blue-600"
+                          />
+                          {CHART_LABELS[key as ReportChartKey]}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={dontShowAgain}
+                      onChange={(e) => setDontShowAgain(e.target.checked)}
+                      className="rounded border-slate-300 text-blue-600"
+                    />
+                    Nu mai afișa acest popup (folosește aceste setări la următoarea generare)
+                  </label>
+                </>
+              )}
+              {!reportModalFull && client?.report_settings != null ? (
+                <p className="text-xs text-slate-500">
+                  Setări raport: cele salvate pentru acest client.{' '}
+                  <button
+                    type="button"
+                    onClick={() => setReportModalFull(true)}
+                    className="text-blue-600 hover:underline"
+                  >
+                    Configurează ce apare în raport
+                  </button>
+                </p>
+              ) : null}
+              <div className="flex gap-2 justify-end pt-2 flex-wrap">
                 <button
                   type="button"
                   onClick={() => setReportModalOpen(false)}
@@ -394,6 +574,16 @@ function ClientDetailContent() {
                 >
                   Anulare
                 </button>
+                {reportModalFull && (
+                  <button
+                    type="button"
+                    onClick={handleSaveReportSettings}
+                    disabled={savingSettings}
+                    className="px-4 py-2 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg disabled:opacity-50"
+                  >
+                    {savingSettings ? 'Se salvează…' : 'Salvează setări'}
+                  </button>
+                )}
                 <button
                   type="submit"
                   disabled={generating}
