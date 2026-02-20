@@ -85,6 +85,10 @@ export async function GET(req: Request) {
     if (!agencyId) {
       return NextResponse.redirect(new URL('/dashboard/agency?error=no_agency', req.url));
     }
+    if (!managerCustomerId) {
+      await supabase.from('agency_tokens').delete().eq('agency_id', agencyId).eq('platform', 'google_ads');
+      return NextResponse.redirect(new URL('/dashboard/agency?error=no_google_ads_account', req.url));
+    }
     await supabase.from('agency_tokens').upsert(
       {
         agency_id: agencyId,
@@ -97,7 +101,7 @@ export async function GET(req: Request) {
       },
       { onConflict: 'agency_id,platform' }
     );
-    if (managerCustomerId && devToken) {
+    if (devToken) {
       const clients = await listGoogleAdsClientAccounts(managerCustomerId, tokens.access_token);
       for (const c of clients) {
         const { data: existing } = await supabase

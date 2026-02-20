@@ -121,7 +121,15 @@ function AgencySettingsContent() {
       setMessage('Meta Ads deconectat.');
       setError('');
     } else if (err) {
-      setError(err === 'oauth_failed' ? 'Autorizare esuata.' : err === 'no_agency' ? 'Agenție negăsită.' : 'Eroare.');
+      const errMsg =
+        err === 'oauth_failed'
+          ? 'Autorizare esuata.'
+          : err === 'no_agency'
+            ? 'Agenție negăsită.'
+            : err === 'no_google_ads_account'
+              ? 'Contul Google nu are conturi Google Ads accesibile. Conectează-te cu un cont care are (sau este) Manager Account în Google Ads.'
+              : 'Eroare.';
+      setError(errMsg);
       setMessage('');
     }
   }, [searchParams]);
