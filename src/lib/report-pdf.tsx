@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Image,
   Svg,
+  Line,
   Polyline,
 } from '@react-pdf/renderer';
 
@@ -396,35 +397,60 @@ export function ReportPDF({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{stripDiacritics('Evolutie cheltuieli (pe zi)')}</Text>
             {dailyTrend && dailyTrend.length > 0 ? (
-              <>
-                <View style={{ marginBottom: 6 }}>
-                  <Svg width="100%" height={100} viewBox="0 0 400 80" preserveAspectRatio="none">
-                    <Polyline
-                      points={(() => {
-                        const slice = dailyTrend.slice(-14);
-                        const n = slice.length;
-                        const step = n > 1 ? 400 / (n - 1) : 0;
-                        return slice
-                          .map((row, i) => {
-                            const x = n > 1 ? i * step : 200;
-                            const y = 78 - (row.spend / maxTrendSpend) * 72;
-                            return `${x},${y}`;
-                          })
-                          .join(' ');
-                      })()}
-                      stroke={brandColor}
-                      strokeWidth={2}
-                      fill="none"
-                    />
-                  </Svg>
-                </View>
-                {dailyTrend.slice(-14).map((row) => (
-                  <View key={row.date} style={styles.chartRow}>
-                    <Text style={styles.chartLabel}>{row.date}</Text>
-                    <Text style={{ fontSize: 8 }}>${row.spend.toFixed(0)}</Text>
-                  </View>
-                ))}
-              </>
+              (() => {
+                const slice = dailyTrend.slice(-14);
+                const n = slice.length;
+                const maxVal = maxTrendSpend;
+                const maxRound = Math.max(50, Math.ceil(maxVal / 50) * 50);
+                const chartLeft = 36;
+                const chartBottom = 78;
+                const chartWidth = 358;
+                const chartHeight = 68;
+                const xStep = n > 1 ? chartWidth / (n - 1) : 0;
+                const polyPoints = slice
+                  .map((row, i) => {
+                    const x = chartLeft + (n > 1 ? i * xStep : chartWidth / 2);
+                    const y = chartBottom - (row.spend / maxRound) * chartHeight;
+                    return `${x},${y}`;
+                  })
+                  .join(' ');
+                const yTicks = [maxRound, Math.round(maxRound / 2), 0];
+                return (
+                  <>
+                    <View style={{ flexDirection: 'row', marginBottom: 2, alignItems: 'stretch' }}>
+                      <View style={{ width: 28, justifyContent: 'space-between', paddingVertical: 2 }}>
+                        {yTicks.map((t) => (
+                          <Text key={t} style={{ fontSize: 7, color: '#64748b' }}>
+                            ${t}
+                          </Text>
+                        ))}
+                      </View>
+                      <Svg width="100%" height={100} viewBox="0 0 400 90" preserveAspectRatio="xMidYMid meet">
+                        <Line x1={chartLeft} y1={10} x2={chartLeft} y2={chartBottom} stroke="#94a3b8" strokeWidth={1} />
+                        <Line x1={chartLeft} y1={chartBottom} x2={chartLeft + chartWidth} y2={chartBottom} stroke="#94a3b8" strokeWidth={1} />
+                        <Polyline points={polyPoints} stroke={brandColor} strokeWidth={2} fill="none" />
+                      </Svg>
+                    </View>
+                    <View style={{ flexDirection: 'row', marginTop: 0, paddingLeft: 28 }}>
+                      {slice.map((row) => {
+                        const dayOnly = row.date.slice(-2);
+                        return (
+                          <View key={row.date} style={{ flex: 1, alignItems: 'center' }}>
+                            <Text style={{ fontSize: 8, color: '#475569' }}>{dayOnly}</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                    <View style={{ flexDirection: 'row', marginTop: 2, paddingLeft: 28 }}>
+                      {slice.map((row) => (
+                        <View key={`v-${row.date}`} style={{ flex: 1, alignItems: 'center' }}>
+                          <Text style={{ fontSize: 7, color: '#64748b' }}>${row.spend.toFixed(0)}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </>
+                );
+              })()
             ) : (
               <Text style={{ fontSize: 9, color: '#64748b' }}>{stripDiacritics('Nu exista date zilnice pentru aceasta perioada.')}</Text>
             )}

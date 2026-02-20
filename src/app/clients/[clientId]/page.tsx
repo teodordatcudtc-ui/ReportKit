@@ -72,7 +72,17 @@ function ClientDetailContent() {
       .then((r) => r.json())
       .then((data) => {
         setClient(data);
-        setClientReportSettings(normalizeReportSettings(data?.report_settings ?? null));
+        const clientSettings = data?.report_settings ?? null;
+        setClientReportSettings(normalizeReportSettings(clientSettings));
+        if (clientSettings == null) {
+          fetch('/api/agencies')
+            .then((ra) => ra.ok ? ra.json() : null)
+            .then((agency) => {
+              if (agency?.report_settings != null) {
+                setClientReportSettings(normalizeReportSettings(agency.report_settings));
+              }
+            });
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -178,35 +188,17 @@ function ClientDetailContent() {
     setReportModalOpen(false);
   }
 
-  async function handleGenerateReport(e: React.FormEvent) {
-    e.preventDefault();
+  async function doGenerate(start: string, end: string, settings: ReportSettings) {
     setGenerateError('');
     setGenerating(true);
-    if (dontShowAgain && client) {
-      const patchRes = await fetch(`/api/clients/${clientId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ report_settings: clientReportSettings, skip_report_modal: true }),
-      });
-      if (patchRes.ok) {
-        const updated = await patchRes.json().catch(() => null);
-        if (updated) {
-          setClient((prev) => ({
-            ...updated,
-            tokens: updated.tokens ?? prev?.tokens ?? [],
-            reports: updated.reports ?? prev?.reports ?? [],
-          }));
-        }
-      }
-    }
     const res = await fetch('/api/reports/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         client_id: clientId,
-        date_start: dateStart,
-        date_end: dateEnd,
-        report_settings: clientReportSettings,
+        date_start: start,
+        date_end: end,
+        report_settings: settings,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -229,6 +221,31 @@ function ClientDetailContent() {
             : prev?.skip_report_modal,
         }));
       });
+  }
+
+  async function handleGenerateReport(e: React.FormEvent) {
+    e.preventDefault();
+    if (client) {
+      const patchRes = await fetch(`/api/clients/${clientId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          report_settings: clientReportSettings,
+          skip_report_modal: dontShowAgain,
+        }),
+      });
+      if (patchRes.ok) {
+        const updated = await patchRes.json().catch(() => null);
+        if (updated) {
+          setClient((prev) => ({
+            ...updated,
+            tokens: updated.tokens ?? prev?.tokens ?? [],
+            reports: updated.reports ?? prev?.reports ?? [],
+          }));
+        }
+      }
+    }
+    await doGenerate(dateStart, dateEnd, clientReportSettings);
   }
 
   const googleToken = client?.tokens?.find((t) => t.platform === 'google_ads');
@@ -382,18 +399,25 @@ function ClientDetailContent() {
             </button>
             <button
               id="generate"
-              onClick={() =>
-                openReportModal(
-                  !(client.skip_report_modal && client.report_settings)
-                )
-              }
-              disabled={!client.google_ads_connected && !client.meta_ads_connected}
+              onClick={() => {
+                if (client.skip_report_modal && client.report_settings != null) {
+                  doGenerate(dateStart, dateEnd, normalizeReportSettings(client.report_settings));
+                } else {
+                  openReportModal(true);
+                }
+              }}
+              disabled={(!client.google_ads_connected && !client.meta_ads_connected) || generating}
               className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Generează raport nou
+              {generating ? 'Se generează…' : 'Generează raport nou'}
             </button>
           </div>
         </div>
+        {generateError && (
+          <div className="px-5 py-3 bg-red-50 border-b border-red-100">
+            <p className="text-sm text-red-600">{generateError}</p>
+          </div>
+        )}
         <div className="divide-y divide-slate-100">
           {(client.reports?.length ?? 0) === 0 ? (
             <div className="px-5 py-8 text-center text-slate-500 text-sm">
