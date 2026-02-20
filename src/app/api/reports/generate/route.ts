@@ -91,12 +91,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed to generate PDF' }, { status: 500 });
   }
 
-  const fileName = `${client_id}_${date_start}_${date_end}.pdf`;
+  const uniqueId = crypto.randomUUID();
+  const fileName = `${client_id}_${date_start}_${date_end}_${uniqueId}.pdf`;
   const { error: uploadError } = await supabase.storage
     .from('reports')
     .upload(fileName, pdfBuffer, {
       contentType: 'application/pdf',
-      upsert: true,
+      upsert: false,
     });
   if (uploadError) {
     console.error('Supabase upload error:', uploadError);
