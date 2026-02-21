@@ -25,7 +25,7 @@ export async function canUseAsManagerAccount(
   if (!devToken) return false;
   const id = customerId.replace(/-/g, '');
   const res = await fetch(
-    `https://googleads.googleapis.com/v16/customers/${id}/googleAds:search`,
+    `https://googleads.googleapis.com/v20/customers/${id}/googleAds:search`,
     {
       method: 'POST',
       headers: {
@@ -57,7 +57,7 @@ export async function listGoogleAdsClientAccounts(
     FROM customer_client
     WHERE customer_client.status = 'ENABLED' AND customer_client.manager = FALSE
   `;
-  const url = `https://googleads.googleapis.com/v16/customers/${managerCustomerId.replace(/-/g, '')}/googleAds:search`;
+  const url = `https://googleads.googleapis.com/v20/customers/${managerCustomerId.replace(/-/g, '')}/googleAds:search`;
   const res = await fetch(url, {
     method: 'POST',
     headers: {

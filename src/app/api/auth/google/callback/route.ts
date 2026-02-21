@@ -65,32 +65,43 @@ export async function GET(req: Request) {
   try {
     const headers: Record<string, string> = { Authorization: `Bearer ${tokens.access_token}` };
     if (devToken) headers['developer-token'] = devToken;
-    const res = await fetch('https://googleads.googleapis.com/v16/customers:listAccessibleCustomers', {
+    const res = await fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
       method: 'GET',
       headers,
     });
-    const data = (await res.json()) as { resourceNames?: string[]; error?: { message?: string; code?: number } };
-    if (!res.ok) {
-      console.error('[Google OAuth] listAccessibleCustomers failed:', res.status, JSON.stringify(data));
-      debugReason = `api_${res.status}`;
-    } else {
-      const rawIds = data?.resourceNames ?? [];
-      const ids = rawIds.map((r) => String(r).replace('customers/', '').replace(/-/g, ''));
-      console.error('[Google OAuth] listAccessibleCustomers ids:', ids.length, ids.slice(0, 5));
-      if (ids.length === 0) {
-        debugReason = 'empty_list';
+    const text = await res.text();
+    let data: { resourceNames?: string[]; error?: { message?: string; code?: number } };
+    try {
+      data = JSON.parse(text) as typeof data;
+    } catch {
+      console.error('[Google OAuth] listAccessibleCustomers non-JSON response:', res.status, text.slice(0, 400));
+      managerCustomerId = null;
+      debugReason = 'api_non_json';
+      data = {};
+    }
+    if (debugReason === null) {
+      if (!res.ok) {
+        console.error('[Google OAuth] listAccessibleCustomers failed:', res.status, JSON.stringify(data));
+        debugReason = `api_${res.status}`;
       } else {
-        for (const id of ids) {
-          const ok = await canUseAsManagerAccount(id, tokens.access_token!);
-          if (ok) {
-            managerCustomerId = id;
-            console.error('[Google OAuth] using manager id:', id);
-            break;
+        const rawIds = data?.resourceNames ?? [];
+        const ids = rawIds.map((r) => String(r).replace('customers/', '').replace(/-/g, ''));
+        console.error('[Google OAuth] listAccessibleCustomers ids:', ids.length, ids.slice(0, 5));
+        if (ids.length === 0) {
+          debugReason = 'empty_list';
+        } else {
+          for (const id of ids) {
+            const ok = await canUseAsManagerAccount(id, tokens.access_token!);
+            if (ok) {
+              managerCustomerId = id;
+              console.error('[Google OAuth] using manager id:', id);
+              break;
+            }
           }
-        }
-        if (!managerCustomerId) {
-          console.error('[Google OAuth] no id passed canUseAsManagerAccount, tried:', ids);
-          debugReason = 'no_valid_manager';
+          if (!managerCustomerId) {
+            console.error('[Google OAuth] no id passed canUseAsManagerAccount, tried:', ids);
+            debugReason = 'no_valid_manager';
+          }
         }
       }
     }
