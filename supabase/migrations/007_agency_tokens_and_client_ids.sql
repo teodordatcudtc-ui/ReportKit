@@ -41,3 +41,4 @@ UPDATE clients SET meta_ads_connected = true WHERE meta_ad_account_id IS NOT NUL
 -- RLS
 ALTER TABLE agency_tokens ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Agency tokens visible for agency" ON agency_tokens FOR ALL USING (true);
+

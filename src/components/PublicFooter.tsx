@@ -24,6 +24,9 @@ export function PublicFooter() {
             <Link href="/confidentialitate" className="text-slate-600 hover:text-slate-900 font-medium transition-colors">
               Politica de confidențialitate
             </Link>
+            <Link href="/stergere-date" className="text-slate-600 hover:text-slate-900 font-medium transition-colors">
+              Ștergere date
+            </Link>
           </nav>
         </div>
         <div className="mt-10 pt-8 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-sm text-slate-500">
