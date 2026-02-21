@@ -11,7 +11,7 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
-        // ReportKit palette
+        // MetricLens palette
         slate: {
           50: "#F8FAFC",
           100: "#F1F5F9",

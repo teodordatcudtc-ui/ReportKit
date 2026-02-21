@@ -17,7 +17,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'ReportKit – Rapoarte de marketing pentru agenții',
+  title: 'MetricLens – Rapoarte de marketing pentru agenții',
   description: 'Rapoarte pentru clienți din Google Ads & Meta Ads, generate automat.',
 };
 

@@ -72,7 +72,7 @@ export default function HomePage() {
             <span className="italic text-blue-700">Generate automat.</span>
           </h1>
           <p className="text-lg text-slate-500 max-w-[520px] mx-auto mb-12 leading-relaxed">
-            ReportKit adună datele din toate platformele și creează rapoarte clare pentru clienții tăi — fără ore pierdute în Excel.
+            MetricLens adună datele din toate platformele și creează rapoarte clare pentru clienții tăi — fără ore pierdute în Excel.
           </p>
           <div className="flex flex-row flex-wrap items-center justify-center gap-2 sm:gap-4">
             <Link
@@ -210,13 +210,13 @@ export default function HomePage() {
             Ai întrebări despre planuri, integrări sau onboarding? Scrie-ne sau sună-ne.
           </p>
           <div className="flex flex-col sm:flex-row gap-8 justify-center items-center text-left">
-            <a href="mailto:contact@reportkit.ro" className="flex items-center gap-4 p-4 rounded-rk-lg border border-slate-200 hover:border-blue-500 hover:bg-slate-50 transition-colors min-w-[240px]">
+            <a href="mailto:contact@metriclens.ro" className="flex items-center gap-4 p-4 rounded-rk-lg border border-slate-200 hover:border-blue-500 hover:bg-slate-50 transition-colors min-w-[240px]">
               <div className="w-12 h-12 rounded-rk-sm bg-[#EFF6FF] flex items-center justify-center flex-shrink-0">
                 <svg width="20" height="20" fill="none" stroke="#1E40AF" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
               </div>
               <div>
                 <div className="font-semibold text-slate-900 text-sm">Email</div>
-                <div className="text-slate-600">contact@reportkit.ro</div>
+                <div className="text-slate-600">contact@metriclens.ro</div>
               </div>
             </a>
             <a href="tel:+40370123456" className="flex items-center gap-4 p-4 rounded-rk-lg border border-slate-200 hover:border-blue-500 hover:bg-slate-50 transition-colors min-w-[240px]">
@@ -241,7 +241,7 @@ export default function HomePage() {
           Gata să economisești ore întregi?
         </h2>
         <p className="text-base text-slate-400 mb-10">
-          Încearcă ReportKit gratuit. Primul raport, în 5 minute.
+          Încearcă MetricLens gratuit. Primul raport, în 5 minute.
         </p>
         <Link
           href="/auth/signup"

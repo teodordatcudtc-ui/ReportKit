@@ -59,7 +59,7 @@ export default function SignUpPage() {
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <Link href="/" className="text-2xl font-bold text-slate-800">
-            ReportKit
+            MetricLens
           </Link>
           <p className="mt-2 text-slate-600">Creează-ți contul</p>
         </div>

@@ -1,4 +1,4 @@
-# ReportKit
+# MetricLens
 
 SaaS MVP pentru generarea de rapoarte de marketing pentru agenții: conectezi Google Ads și Meta Ads per client, alegi perioada și generezi un PDF branduit.
 

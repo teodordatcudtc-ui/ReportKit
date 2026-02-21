@@ -2,8 +2,6 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { SiteLogo } from '@/components/SiteLogo';
-
 function MenuIcon() {
   return (
     <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -56,9 +54,8 @@ export function PublicHeader() {
   return (
     <>
       <header className="sticky top-0 z-50 bg-white border-b border-slate-200 h-20 flex items-center justify-between px-4 md:px-10">
-        {/* Logo – mai mic pe mobil, lipit de stânga */}
-        <Link href="/" className="flex items-center flex-shrink-0 origin-left scale-[0.52] md:scale-100 pl-0" aria-label="ReportKit">
-          <SiteLogo />
+        <Link href="/" className="flex items-center flex-shrink-0 text-xl font-bold text-slate-900" aria-label="MetricLens">
+          MetricLens
         </Link>
 
         {/* Nav desktop */}

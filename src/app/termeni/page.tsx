@@ -3,8 +3,8 @@ import { PublicHeader } from '@/components/PublicHeader';
 import { PublicFooter } from '@/components/PublicFooter';
 
 export const metadata = {
-  title: 'Termeni și condiții — ReportKit',
-  description: 'Termenii și condițiile de utilizare ReportKit.',
+  title: 'Termeni și condiții — MetricLens',
+  description: 'Termenii și condițiile de utilizare MetricLens.',
 };
 
 export default function TermeniPage() {
@@ -27,14 +27,14 @@ export default function TermeniPage() {
             <section>
               <h2 className="text-lg font-semibold text-slate-900 mb-2">1. Acceptarea termenilor</h2>
               <p>
-                Accesând și folosind ReportKit („Serviciul”), acceptați acești termeni și condiții. Dacă nu sunteți de acord cu ei, vă rugăm să nu utilizați Serviciul.
+                Accesând și folosind MetricLens („Serviciul”), acceptați acești termeni și condiții. Dacă nu sunteți de acord cu ei, vă rugăm să nu utilizați Serviciul.
               </p>
             </section>
 
             <section>
               <h2 className="text-lg font-semibold text-slate-900 mb-2">2. Descrierea serviciului</h2>
               <p>
-                ReportKit oferă un instrument online pentru generarea rapoartelor de marketing (inclusiv din surse precum Google Ads, Meta Ads și altele), export în PDF/PPTX și funcții de programare. Serviciul este destinat agențiilor și profesioniștilor din marketing.
+                MetricLens oferă un instrument online pentru generarea rapoartelor de marketing (inclusiv din surse precum Google Ads, Meta Ads și altele), export în PDF/PPTX și funcții de programare. Serviciul este destinat agențiilor și profesioniștilor din marketing.
               </p>
             </section>
 
@@ -62,7 +62,7 @@ export default function TermeniPage() {
             <section>
               <h2 className="text-lg font-semibold text-slate-900 mb-2">6. Proprietate intelectuală</h2>
               <p>
-                ReportKit, inclusiv logo-ul, interfața și software-ul, sunt protejate de drepturi de autor și alte drepturi de proprietate intelectuală. Nu aveți dreptul să copiați, să modificați sau să distribuiți părți ale Serviciului fără acordul nostru scris.
+                MetricLens, inclusiv logo-ul, interfața și software-ul, sunt protejate de drepturi de autor și alte drepturi de proprietate intelectuală. Nu aveți dreptul să copiați, să modificați sau să distribuiți părți ale Serviciului fără acordul nostru scris.
               </p>
             </section>
 
@@ -76,7 +76,7 @@ export default function TermeniPage() {
             <section>
               <h2 className="text-lg font-semibold text-slate-900 mb-2">8. Contact</h2>
               <p>
-                Pentru întrebări legate de acești termeni: <a href="mailto:contact@reportkit.ro" className="text-blue-700 hover:underline">contact@reportkit.ro</a>.
+                Pentru întrebări legate de acești termeni: <a href="mailto:contact@metriclens.ro" className="text-blue-700 hover:underline">contact@metriclens.ro</a>.
               </p>
             </section>
           </div>

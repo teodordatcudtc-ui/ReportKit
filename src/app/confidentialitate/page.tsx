@@ -3,8 +3,8 @@ import { PublicHeader } from '@/components/PublicHeader';
 import { PublicFooter } from '@/components/PublicFooter';
 
 export const metadata = {
-  title: 'Politica de confidențialitate — ReportKit',
-  description: 'Politica de confidențialitate și protecția datelor ReportKit.',
+  title: 'Politica de confidențialitate — MetricLens',
+  description: 'Politica de confidențialitate și protecția datelor MetricLens.',
 };
 
 export default function ConfidentialitatePage() {
@@ -27,14 +27,14 @@ export default function ConfidentialitatePage() {
             <section>
               <h2 className="text-lg font-semibold text-slate-900 mb-2">1. Cine suntem</h2>
               <p>
-                ReportKit („noi”) procesează date cu caracter personal în calitate de operator atunci când furnizați date prin site sau prin utilizarea serviciului. Această politică descrie ce date colectăm, cum le folosim și ce drepturi aveți.
+                MetricLens („noi”) procesează date cu caracter personal în calitate de operator atunci când furnizați date prin site sau prin utilizarea serviciului. Această politică descrie ce date colectăm, cum le folosim și ce drepturi aveți.
               </p>
             </section>
 
             <section>
               <h2 className="text-lg font-semibold text-slate-900 mb-2">2. Date pe care le colectăm</h2>
               <p>
-                Colectăm date pe care ni le furnizați direct: date de cont (nume, email, parolă hashată), nume agenție, date despre clienții pe care îi adăugați în ReportKit (nume, date de cont conectate pentru rapoarte). Colectăm automat date tehnice (adresă IP, tip browser, jurnal de acces) pentru funcționarea și securitatea serviciului.
+                Colectăm date pe care ni le furnizați direct: date de cont (nume, email, parolă hashată), nume agenție, date despre clienții pe care îi adăugați în MetricLens (nume, date de cont conectate pentru rapoarte). Colectăm automat date tehnice (adresă IP, tip browser, jurnal de acces) pentru funcționarea și securitatea serviciului.
               </p>
             </section>
 
@@ -48,7 +48,7 @@ export default function ConfidentialitatePage() {
             <section>
               <h2 className="text-lg font-semibold text-slate-900 mb-2">4. Temeiul legal</h2>
               <p>
-                Prelucrăm datele pe baza executării contractului (serviciul ReportKit), consimțământul (unde este cazul), obligații legale și interes legitim (securitate, analiză internă).
+                Prelucrăm datele pe baza executării contractului (serviciul MetricLens), consimțământul (unde este cazul), obligații legale și interes legitim (securitate, analiză internă).
               </p>
             </section>
 
@@ -69,7 +69,7 @@ export default function ConfidentialitatePage() {
             <section>
               <h2 className="text-lg font-semibold text-slate-900 mb-2">7. Drepturile dvs. (GDPR)</h2>
               <p>
-                Aveți dreptul la: acces, rectificare, ștergere („dreptul de a fi uitat”), restricționarea prelucrării, portabilitatea datelor, opoziție și dreptul de a vă plânge la ANSPDCP. Pentru exercitarea drepturilor: <a href="mailto:contact@reportkit.ro" className="text-blue-700 hover:underline">contact@reportkit.ro</a>.
+                Aveți dreptul la: acces, rectificare, ștergere („dreptul de a fi uitat”), restricționarea prelucrării, portabilitatea datelor, opoziție și dreptul de a vă plânge la ANSPDCP. Pentru exercitarea drepturilor: <a href="mailto:contact@metriclens.ro" className="text-blue-700 hover:underline">contact@metriclens.ro</a>.
               </p>
             </section>
 
@@ -83,7 +83,7 @@ export default function ConfidentialitatePage() {
             <section>
               <h2 className="text-lg font-semibold text-slate-900 mb-2">9. Contact</h2>
               <p>
-                Pentru întrebări despre confidențialitate: <a href="mailto:contact@reportkit.ro" className="text-blue-700 hover:underline">contact@reportkit.ro</a>.
+                Pentru întrebări despre confidențialitate: <a href="mailto:contact@metriclens.ro" className="text-blue-700 hover:underline">contact@metriclens.ro</a>.
               </p>
             </section>
           </div>

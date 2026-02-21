@@ -1,4 +1,4 @@
--- ReportKit / Agency Reports - Initial schema for Supabase PostgreSQL
+-- MetricLens / Agency Reports - Initial schema for Supabase PostgreSQL
 -- Run this in Supabase SQL Editor or via Supabase CLI
 
 -- Users (for NextAuth - we use Supabase auth.users or sync from NextAuth; this table matches NextAuth schema)

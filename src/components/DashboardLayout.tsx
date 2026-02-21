@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
-import { SiteLogo } from '@/components/SiteLogo';
 import { useEffect, useState } from 'react';
 
 const mainNav = [
@@ -109,7 +108,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* Sidebar - ReportKit style; pe desktop e sticky + h-screen ca Plan/Deconectare să rămână jos */}
+      {/* Sidebar - MetricLens style; pe desktop e sticky + h-screen ca Plan/Deconectare să rămână jos */}
       <aside
         className={`bg-white border-r border-slate-200 flex flex-col flex-shrink-0
         w-72 md:w-[220px] py-4 px-4
@@ -120,13 +119,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
       >
         <div className="flex items-center justify-between md:justify-center gap-3 h-[72px] md:h-[100px] shrink-0">
-          <Link href="/" className="flex items-center justify-center overflow-visible" aria-label="ReportKit">
-            <span className="md:hidden">
-              <SiteLogo size="small" />
-            </span>
-            <span className="hidden md:block">
-              <SiteLogo size="compact" />
-            </span>
+          <Link href="/" className="flex items-center justify-center text-lg font-bold text-slate-900" aria-label="MetricLens">
+            MetricLens
           </Link>
           <button
             type="button"

@@ -12,7 +12,7 @@ export const PLANS_DISPLAY = [
       '1 client activ',
       'Până la 3 rapoarte/lună',
       'Google Ads + Meta Ads',
-      'Watermark "Powered by REPORTKIT" pe PDF',
+      'Watermark "Powered by METRICLENS" pe PDF',
       'Email support (48h response)',
     ],
     cta: 'Începe gratuit',
