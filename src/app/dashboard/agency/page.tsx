@@ -121,13 +121,22 @@ function AgencySettingsContent() {
       setMessage('Meta Ads deconectat.');
       setError('');
     } else if (err) {
+      const debug = searchParams.get('debug') ?? '';
       const errMsg =
         err === 'oauth_failed'
           ? 'Autorizare esuata.'
           : err === 'no_agency'
             ? 'Agenție negăsită.'
             : err === 'no_google_ads_account'
-              ? 'Contul Google nu are conturi Google Ads accesibile. Conectează-te cu un cont care are (sau este) Manager Account în Google Ads.'
+              ? debug === 'empty_list'
+                ? 'Google nu a returnat niciun cont (listă goală). Verifică că contul are acces la un cont Google Ads / Manager.'
+                : debug === 'no_valid_manager'
+                  ? 'Conturile returnate de Google nu pot fi folosite ca Manager (ex. cont anulat). Încearcă un cont care are doar Manager Account.'
+                  : debug.startsWith('api_')
+                    ? `Eroare API Google (${debug}). Verifică Developer Token și că aplicația are acces la Google Ads API.`
+                    : debug === 'exception'
+                      ? 'Eroare la comunicarea cu Google. Încearcă din nou sau verifică setările aplicației.'
+                      : 'Contul Google nu are conturi Google Ads accesibile. Conectează-te cu un cont care are (sau este) Manager Account în Google Ads.'
               : 'Eroare.';
       setError(errMsg);
       setMessage('');

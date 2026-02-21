@@ -38,6 +38,10 @@ export async function canUseAsManagerAccount(
       }),
     }
   );
+  if (!res.ok) {
+    const text = await res.text();
+    console.error('[Google Ads] canUseAsManagerAccount failed for', id, res.status, text.slice(0, 300));
+  }
   return res.ok;
 }
 

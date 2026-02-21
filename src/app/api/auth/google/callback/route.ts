@@ -61,6 +61,7 @@ export async function GET(req: Request) {
 
   const devToken = process.env.GOOGLE_DEVELOPER_TOKEN;
   let managerCustomerId: string | null = null;
+  let debugReason: string | null = null;
   try {
     const headers: Record<string, string> = { Authorization: `Bearer ${tokens.access_token}` };
     if (devToken) headers['developer-token'] = devToken;
@@ -68,18 +69,35 @@ export async function GET(req: Request) {
       method: 'GET',
       headers,
     });
-    const data = (await res.json()) as { resourceNames?: string[] };
-    const rawIds = data?.resourceNames ?? [];
-    const ids = rawIds.map((r) => r.replace('customers/', '').replace(/-/g, ''));
-    for (const id of ids) {
-      const ok = await canUseAsManagerAccount(id, tokens.access_token!);
-      if (ok) {
-        managerCustomerId = id;
-        break;
+    const data = (await res.json()) as { resourceNames?: string[]; error?: { message?: string; code?: number } };
+    if (!res.ok) {
+      console.error('[Google OAuth] listAccessibleCustomers failed:', res.status, JSON.stringify(data));
+      debugReason = `api_${res.status}`;
+    } else {
+      const rawIds = data?.resourceNames ?? [];
+      const ids = rawIds.map((r) => String(r).replace('customers/', '').replace(/-/g, ''));
+      console.error('[Google OAuth] listAccessibleCustomers ids:', ids.length, ids.slice(0, 5));
+      if (ids.length === 0) {
+        debugReason = 'empty_list';
+      } else {
+        for (const id of ids) {
+          const ok = await canUseAsManagerAccount(id, tokens.access_token!);
+          if (ok) {
+            managerCustomerId = id;
+            console.error('[Google OAuth] using manager id:', id);
+            break;
+          }
+        }
+        if (!managerCustomerId) {
+          console.error('[Google OAuth] no id passed canUseAsManagerAccount, tried:', ids);
+          debugReason = 'no_valid_manager';
+        }
       }
     }
-  } catch {
+  } catch (e) {
+    console.error('[Google OAuth] listAccessibleCustomers error:', e);
     managerCustomerId = null;
+    debugReason = 'exception';
   }
 
   const expiresAt = tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null;
@@ -92,7 +110,8 @@ export async function GET(req: Request) {
     }
     if (!managerCustomerId) {
       await supabase.from('agency_tokens').delete().eq('agency_id', agencyId).eq('platform', 'google_ads');
-      return NextResponse.redirect(new URL('/dashboard/agency?error=no_google_ads_account', req.url));
+      const debug = debugReason ? `&debug=${encodeURIComponent(debugReason)}` : '';
+      return NextResponse.redirect(new URL(`/dashboard/agency?error=no_google_ads_account${debug}`, req.url));
     }
     await supabase.from('agency_tokens').upsert(
       {
