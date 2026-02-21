@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { OAuth2Client } from 'google-auth-library';
-import { listGoogleAdsClientAccounts } from '@/lib/google-ads';
+import { canUseAsManagerAccount, listGoogleAdsClientAccounts } from '@/lib/google-ads';
 
 async function getAgencyId(userId: string): Promise<string | null> {
   const { data } = await getSupabaseAdmin()
@@ -69,9 +69,14 @@ export async function GET(req: Request) {
       headers,
     });
     const data = (await res.json()) as { resourceNames?: string[] };
-    const ids = data?.resourceNames ?? [];
-    if (ids.length >= 1) {
-      managerCustomerId = ids[0].replace('customers/', '').replace(/-/g, '');
+    const rawIds = data?.resourceNames ?? [];
+    const ids = rawIds.map((r) => r.replace('customers/', '').replace(/-/g, ''));
+    for (const id of ids) {
+      const ok = await canUseAsManagerAccount(id, tokens.access_token!);
+      if (ok) {
+        managerCustomerId = id;
+        break;
+      }
     }
   } catch {
     managerCustomerId = null;

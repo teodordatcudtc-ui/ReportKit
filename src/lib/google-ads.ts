@@ -16,6 +16,31 @@ export async function getValidAccessToken(
   return credentials.access_token ?? accessToken;
 }
 
+/** Verifică dacă un customer ID poate fi folosit ca Manager (API-ul răspunde OK). Folosit la OAuth când utilizatorul are mai multe conturi (ex. unul anulat). */
+export async function canUseAsManagerAccount(
+  customerId: string,
+  accessToken: string
+): Promise<boolean> {
+  const devToken = process.env.GOOGLE_DEVELOPER_TOKEN;
+  if (!devToken) return false;
+  const id = customerId.replace(/-/g, '');
+  const res = await fetch(
+    `https://googleads.googleapis.com/v16/customers/${id}/googleAds:search`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'developer-token': devToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: 'SELECT customer_client.id FROM customer_client LIMIT 1',
+      }),
+    }
+  );
+  return res.ok;
+}
+
 /** Listează conturile client (non-manager) din Manager Account; folosit după OAuth agenție pentru import. */
 export async function listGoogleAdsClientAccounts(
   managerCustomerId: string,
