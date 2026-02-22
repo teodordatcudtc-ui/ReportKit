@@ -5,11 +5,16 @@ import { sendReportByResend } from '@/lib/send-report-email-resend';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
+/** Folosim Node runtime ca să evităm limite de header pe Edge (400 Request Header Too Large) */
+export const runtime = 'nodejs';
 
 export async function GET(req: Request) {
-  const authHeader = req.headers.get('authorization');
   const secret = process.env.CRON_SECRET;
-  if (secret && authHeader !== `Bearer ${secret}`) {
+  const authHeader = req.headers.get('authorization');
+  const keyParam = new URL(req.url).searchParams.get('key');
+  const authorizedByHeader = secret && authHeader === `Bearer ${secret}`;
+  const authorizedByKey = secret && keyParam === secret;
+  if (secret && !authorizedByHeader && !authorizedByKey) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
