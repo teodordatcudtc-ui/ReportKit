@@ -75,12 +75,11 @@ function ClientDetailContent() {
   const [linkingAccount, setLinkingAccount] = useState<'google' | 'meta' | null>(null);
   const [scheduleEmail, setScheduleEmail] = useState('');
   const [scheduleDateTime, setScheduleDateTime] = useState('');
-  const [scheduleFromEmail, setScheduleFromEmail] = useState('');
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [scheduleError, setScheduleError] = useState('');
   const [scheduleSuccess, setScheduleSuccess] = useState(false);
   const [scheduledEmailAllowed, setScheduledEmailAllowed] = useState(false);
-  const [clientSchedule, setClientSchedule] = useState<{ id: string; send_to_email: string; next_send_at: string; from_email: string | null } | null>(null);
+  const [clientSchedule, setClientSchedule] = useState<{ id: string; send_to_email: string; next_send_at: string } | null>(null);
 
   const success = searchParams.get('success');
   const error = searchParams.get('error');
@@ -171,7 +170,6 @@ function ClientDetailContent() {
       body: JSON.stringify({
         client_id: clientId,
         send_to_email: scheduleEmail.trim(),
-        from_email: scheduleFromEmail.trim() || undefined,
         next_send_at: scheduleDateTime ? new Date(scheduleDateTime).toISOString() : undefined,
       }),
     });
@@ -182,7 +180,7 @@ function ClientDetailContent() {
       return;
     }
     setScheduleSuccess(true);
-    setClientSchedule({ id: data.id, send_to_email: scheduleEmail.trim(), next_send_at: data.next_send_at, from_email: scheduleFromEmail.trim() || null });
+    setClientSchedule({ id: data.id, send_to_email: scheduleEmail.trim(), next_send_at: data.next_send_at });
   };
 
   const handleDeleteSchedule = async () => {
@@ -192,7 +190,6 @@ function ClientDetailContent() {
       setClientSchedule(null);
       setScheduleEmail('');
       setScheduleDateTime('');
-      setScheduleFromEmail('');
     }
   };
 
@@ -234,7 +231,6 @@ function ClientDetailContent() {
         if (forClient) {
           setClientSchedule(forClient);
           setScheduleEmail(forClient.send_to_email);
-          setScheduleFromEmail(forClient.from_email ?? '');
           try {
             const d = new Date(forClient.next_send_at);
             setScheduleDateTime(d.toISOString().slice(0, 16));
@@ -499,41 +495,31 @@ function ClientDetailContent() {
           <h2 className="font-semibold text-slate-800">Trimitere automată raport pe email</h2>
           {scheduleError && <p className="text-sm text-red-600">{scheduleError}</p>}
           {scheduleSuccess && <p className="text-sm text-green-600">Programare salvată.</p>}
-          <form onSubmit={handleSaveSchedule} className="space-y-4 max-w-md">
-            <div>
-              <label htmlFor="schedule_email" className="block text-sm font-medium text-slate-700 mb-1">Email client</label>
-              <input
-                id="schedule_email"
-                type="email"
-                value={scheduleEmail}
-                onChange={(e) => setScheduleEmail(e.target.value)}
-                placeholder="client@email.ro"
-                required
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-              />
-            </div>
-            <div>
-              <label htmlFor="schedule_datetime" className="block text-sm font-medium text-slate-700 mb-1">Data și ora programare</label>
-              <input
-                id="schedule_datetime"
-                type="datetime-local"
-                value={scheduleDateTime}
-                onChange={(e) => setScheduleDateTime(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-              />
-            </div>
-            <div>
-              <label htmlFor="schedule_from" className="block text-sm font-medium text-slate-700 mb-1">De la (opțional)</label>
-              <input
-                id="schedule_from"
-                type="email"
-                value={scheduleFromEmail}
-                onChange={(e) => setScheduleFromEmail(e.target.value)}
-                placeholder="tu@agentia.ro"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-              />
-            </div>
-            <div className="flex gap-2">
+          <form onSubmit={handleSaveSchedule} className="space-y-4">
+            <div className="flex flex-wrap items-end gap-4">
+              <div>
+                <label htmlFor="schedule_email" className="block text-sm font-medium text-slate-700 mb-1">Email client</label>
+                <input
+                  id="schedule_email"
+                  type="email"
+                  value={scheduleEmail}
+                  onChange={(e) => setScheduleEmail(e.target.value)}
+                  placeholder="client@email.ro"
+                  required
+                  className="w-full min-w-[220px] px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label htmlFor="schedule_datetime" className="block text-sm font-medium text-slate-700 mb-1">Data și ora programare</label>
+                <input
+                  id="schedule_datetime"
+                  type="datetime-local"
+                  value={scheduleDateTime}
+                  onChange={(e) => setScheduleDateTime(e.target.value)}
+                  className="w-full min-w-[200px] px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                />
+              </div>
+              <div className="flex gap-2 shrink-0">
               <button
                 type="submit"
                 disabled={scheduleSaving || !scheduleEmail.trim()}
@@ -550,6 +536,7 @@ function ClientDetailContent() {
                   Șterge programare
                 </button>
               )}
+            </div>
             </div>
           </form>
         </section>
