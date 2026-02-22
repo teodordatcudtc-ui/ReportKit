@@ -9,12 +9,19 @@ export const maxDuration = 60;
 export const runtime = 'nodejs';
 
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
+  const secret = process.env.CRON_SECRET?.trim() ?? '';
   const authHeader = req.headers.get('authorization');
-  const keyParam = new URL(req.url).searchParams.get('key');
-  const authorizedByHeader = secret && authHeader === `Bearer ${secret}`;
-  const authorizedByKey = secret && keyParam === secret;
-  if (secret && !authorizedByHeader && !authorizedByKey) {
+  let keyParam: string | null = null;
+  try {
+    const url = new URL(req.url);
+    keyParam = url.searchParams.get('key')?.trim() ?? null;
+  } catch {
+    const q = req.url.includes('?') ? req.url.split('?')[1] : '';
+    keyParam = new URLSearchParams(q).get('key')?.trim() ?? null;
+  }
+  const authorizedByHeader = secret.length > 0 && authHeader === `Bearer ${secret}`;
+  const authorizedByKey = secret.length > 0 && keyParam !== null && keyParam === secret;
+  if (secret.length > 0 && !authorizedByHeader && !authorizedByKey) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
