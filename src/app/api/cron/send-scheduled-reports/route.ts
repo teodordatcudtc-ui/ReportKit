@@ -8,18 +8,19 @@ export const maxDuration = 60;
 /** Folosim Node runtime ca să evităm limite de header pe Edge (400 Request Header Too Large) */
 export const runtime = 'nodejs';
 
+const MIN_KEY_LENGTH = 24;
+
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET?.trim() ?? '';
   const authHeader = req.headers.get('authorization');
-  // nextUrl.searchParams e modul recomandat în Next.js și funcționează corect pe Vercel
   const keyParam = req.nextUrl.searchParams.get('key')?.trim() ?? null;
   const authorizedByHeader = secret.length > 0 && authHeader === `Bearer ${secret}`;
-  const authorizedByKey = secret.length > 0 && keyParam !== null && keyParam === secret;
-  if (secret.length > 0 && !authorizedByHeader && !authorizedByKey) {
-    const res = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // Debug temporar: vezi în Response Headers dacă key a sosit și dacă CRON_SECRET e setat (fără a le expune)
-    res.headers.set('X-Cron-Debug', `key=${keyParam ? 'yes' : 'no'}, secret=${secret ? 'set' : 'missing'}`);
-    return res;
+  const authorizedByKeyMatch = secret.length > 0 && keyParam !== null && keyParam === secret;
+  // Dacă CRON_SECRET nu e setat în Vercel, acceptăm doar pe baza unui key lung în URL (secretul e în URL)
+  const authorizedByKeyOnly = secret.length === 0 && keyParam !== null && keyParam.length >= MIN_KEY_LENGTH;
+  const authorized = authorizedByHeader || authorizedByKeyMatch || authorizedByKeyOnly;
+  if (!authorized) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const supabase = getSupabaseAdmin();
