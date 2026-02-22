@@ -52,6 +52,7 @@ const createSchema = z.object({
   client_id: z.string().uuid(),
   send_to_email: z.string().email(),
   from_email: z.string().email().optional(),
+  next_send_at: z.string().min(1).optional(),
 });
 
 export async function POST(req: Request) {
@@ -71,7 +72,7 @@ export async function POST(req: Request) {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'client_id si send_to_email invalide' }, { status: 400 });
 
-  const { client_id, send_to_email, from_email } = parsed.data;
+  const { client_id, send_to_email, from_email, next_send_at } = parsed.data;
   const { data: client } = await getSupabaseAdmin()
     .from('clients')
     .select('id')
@@ -81,7 +82,8 @@ export async function POST(req: Request) {
   if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
 
   const now = new Date();
-  const nextSend = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const nextSend = next_send_at ? new Date(next_send_at) : new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  if (Number.isNaN(nextSend.getTime())) return NextResponse.json({ error: 'next_send_at invalid' }, { status: 400 });
 
   const { data: row, error } = await getSupabaseAdmin()
     .from('scheduled_reports')

@@ -18,6 +18,7 @@ import {
   type MetaReportKey,
   type ReportChartKey,
 } from '@/lib/report-settings';
+import { getPlanLimit } from '@/lib/plans';
 
 interface ClientDetail {
   id: string;
@@ -72,6 +73,14 @@ function ClientDetailContent() {
   const [hasMetaConnection, setHasMetaConnection] = useState(false);
   const [accountsLoading, setAccountsLoading] = useState(false);
   const [linkingAccount, setLinkingAccount] = useState<'google' | 'meta' | null>(null);
+  const [scheduleEmail, setScheduleEmail] = useState('');
+  const [scheduleDateTime, setScheduleDateTime] = useState('');
+  const [scheduleFromEmail, setScheduleFromEmail] = useState('');
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [scheduleError, setScheduleError] = useState('');
+  const [scheduleSuccess, setScheduleSuccess] = useState(false);
+  const [scheduledEmailAllowed, setScheduledEmailAllowed] = useState(false);
+  const [clientSchedule, setClientSchedule] = useState<{ id: string; send_to_email: string; next_send_at: string; from_email: string | null } | null>(null);
 
   const success = searchParams.get('success');
   const error = searchParams.get('error');
@@ -151,6 +160,42 @@ function ClientDetailContent() {
     if (res.ok) refetchClient();
   };
 
+  const handleSaveSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setScheduleError('');
+    setScheduleSuccess(false);
+    setScheduleSaving(true);
+    const res = await fetch('/api/scheduled-reports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: clientId,
+        send_to_email: scheduleEmail.trim(),
+        from_email: scheduleFromEmail.trim() || undefined,
+        next_send_at: scheduleDateTime ? new Date(scheduleDateTime).toISOString() : undefined,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setScheduleSaving(false);
+    if (!res.ok) {
+      setScheduleError(data.error ?? 'Eroare la salvare.');
+      return;
+    }
+    setScheduleSuccess(true);
+    setClientSchedule({ id: data.id, send_to_email: scheduleEmail.trim(), next_send_at: data.next_send_at, from_email: scheduleFromEmail.trim() || null });
+  };
+
+  const handleDeleteSchedule = async () => {
+    if (!clientSchedule?.id) return;
+    const res = await fetch(`/api/scheduled-reports?id=${clientSchedule.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setClientSchedule(null);
+      setScheduleEmail('');
+      setScheduleDateTime('');
+      setScheduleFromEmail('');
+    }
+  };
+
   useEffect(() => {
     if (!clientId) return;
     fetch(`/api/clients/${clientId}`)
@@ -171,6 +216,33 @@ function ClientDetailContent() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  }, [clientId]);
+
+  useEffect(() => {
+    fetch('/api/agencies')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((agency) => {
+        if (agency?.plan != null) {
+          setScheduledEmailAllowed(getPlanLimit(agency.plan).scheduledEmail);
+        }
+      });
+    fetch('/api/scheduled-reports')
+      .then((r) => (r.ok ? r.json() : { scheduled: [] }))
+      .then((data) => {
+        const list = data.scheduled ?? [];
+        const forClient = list.find((s: { client_id: string }) => s.client_id === clientId);
+        if (forClient) {
+          setClientSchedule(forClient);
+          setScheduleEmail(forClient.send_to_email);
+          setScheduleFromEmail(forClient.from_email ?? '');
+          try {
+            const d = new Date(forClient.next_send_at);
+            setScheduleDateTime(d.toISOString().slice(0, 16));
+          } catch {
+            setScheduleDateTime('');
+          }
+        }
+      });
   }, [clientId]);
 
   const loadMetrics = useCallback(() => {
@@ -387,66 +459,101 @@ function ClientDetailContent() {
         </div>
       )}
 
-      <section className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
-        <h2 className="font-semibold text-slate-800">Stare conexiuni</h2>
-        <p className="text-sm text-slate-600">Alege un cont din cele gestionate de agenție (conectate în Setări agenție).</p>
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between py-2 border-b border-slate-100">
-            <div>
-              <p className="font-medium text-slate-700">Google Ads</p>
-              <p className="text-sm text-slate-500">
-                {client.google_ads_connected
-                  ? `Conectat${(client.google_ads_customer_id ?? googleToken?.account_id) ? ` (${client.google_ads_customer_id ?? googleToken?.account_id})` : ''}`
-                  : 'Neconectat'}
-              </p>
-            </div>
+      <section className="bg-white rounded-lg border border-slate-200 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+          <span className="font-medium text-slate-600">Conexiuni:</span>
+          <span className="text-slate-700">
+            Google Ads{' '}
             {client.google_ads_connected ? (
-              <button
-                type="button"
-                onClick={handleUnlinkGoogle}
-                className="text-sm text-slate-500 hover:text-red-600 font-medium"
-              >
-                Deconectare
-              </button>
+              <>
+                <span className="text-green-600">✓</span>
+                {(client.google_ads_customer_id ?? googleToken?.account_id) && (
+                  <span className="text-slate-500">({client.google_ads_customer_id ?? googleToken?.account_id})</span>
+                )}
+                <button type="button" onClick={handleUnlinkGoogle} className="ml-1.5 text-slate-400 hover:text-red-600">Deconectare</button>
+              </>
             ) : (
-              <button
-                type="button"
-                onClick={() => setConnectModal('google')}
-                className="text-sm text-blue-600 hover:underline font-medium"
-              >
-                Conectează Google Ads
-              </button>
+              <button type="button" onClick={() => setConnectModal('google')} className="text-blue-600 hover:underline">Conectează</button>
             )}
-          </div>
-          <div className="flex items-center justify-between py-2">
-            <div>
-              <p className="font-medium text-slate-700">Meta Ads</p>
-              <p className="text-sm text-slate-500">
-                {client.meta_ads_connected
-                  ? `Conectat${(client.meta_ad_account_id ?? metaToken?.account_id) ? ` (${client.meta_ad_account_id ?? metaToken?.account_id})` : ''}`
-                  : 'Neconectat'}
-              </p>
-            </div>
+          </span>
+          <span className="text-slate-400">|</span>
+          <span className="text-slate-700">
+            Meta Ads{' '}
             {client.meta_ads_connected ? (
-              <button
-                type="button"
-                onClick={handleUnlinkMeta}
-                className="text-sm text-slate-500 hover:text-red-600 font-medium"
-              >
-                Deconectare
-              </button>
+              <>
+                <span className="text-green-600">✓</span>
+                {(client.meta_ad_account_id ?? metaToken?.account_id) && (
+                  <span className="text-slate-500">({client.meta_ad_account_id ?? metaToken?.account_id})</span>
+                )}
+                <button type="button" onClick={handleUnlinkMeta} className="ml-1.5 text-slate-400 hover:text-red-600">Deconectare</button>
+              </>
             ) : (
-              <button
-                type="button"
-                onClick={() => setConnectModal('meta')}
-                className="text-sm text-blue-600 hover:underline font-medium"
-              >
-                Conectează Meta Ads
-              </button>
+              <button type="button" onClick={() => setConnectModal('meta')} className="text-blue-600 hover:underline">Conectează</button>
             )}
-          </div>
+          </span>
         </div>
       </section>
+
+      {scheduledEmailAllowed && (
+        <section className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
+          <h2 className="font-semibold text-slate-800">Trimitere automată raport pe email</h2>
+          {scheduleError && <p className="text-sm text-red-600">{scheduleError}</p>}
+          {scheduleSuccess && <p className="text-sm text-green-600">Programare salvată.</p>}
+          <form onSubmit={handleSaveSchedule} className="space-y-4 max-w-md">
+            <div>
+              <label htmlFor="schedule_email" className="block text-sm font-medium text-slate-700 mb-1">Email client</label>
+              <input
+                id="schedule_email"
+                type="email"
+                value={scheduleEmail}
+                onChange={(e) => setScheduleEmail(e.target.value)}
+                placeholder="client@email.ro"
+                required
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="schedule_datetime" className="block text-sm font-medium text-slate-700 mb-1">Data și ora programare</label>
+              <input
+                id="schedule_datetime"
+                type="datetime-local"
+                value={scheduleDateTime}
+                onChange={(e) => setScheduleDateTime(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="schedule_from" className="block text-sm font-medium text-slate-700 mb-1">De la (opțional)</label>
+              <input
+                id="schedule_from"
+                type="email"
+                value={scheduleFromEmail}
+                onChange={(e) => setScheduleFromEmail(e.target.value)}
+                placeholder="tu@agentia.ro"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={scheduleSaving || !scheduleEmail.trim()}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {scheduleSaving ? 'Se salvează…' : clientSchedule ? 'Actualizează programarea' : 'Programează'}
+              </button>
+              {clientSchedule && (
+                <button
+                  type="button"
+                  onClick={handleDeleteSchedule}
+                  className="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50"
+                >
+                  Șterge programare
+                </button>
+              )}
+            </div>
+          </form>
+        </section>
+      )}
 
       {connectModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
