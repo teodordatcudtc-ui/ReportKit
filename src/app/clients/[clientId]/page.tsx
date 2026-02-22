@@ -74,7 +74,8 @@ function ClientDetailContent() {
   const [accountsLoading, setAccountsLoading] = useState(false);
   const [linkingAccount, setLinkingAccount] = useState<'google' | 'meta' | null>(null);
   const [scheduleEmail, setScheduleEmail] = useState('');
-  const [scheduleDateTime, setScheduleDateTime] = useState('');
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleHour, setScheduleHour] = useState('9');
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [scheduleError, setScheduleError] = useState('');
   const [scheduleSuccess, setScheduleSuccess] = useState(false);
@@ -170,7 +171,10 @@ function ClientDetailContent() {
       body: JSON.stringify({
         client_id: clientId,
         send_to_email: scheduleEmail.trim(),
-        next_send_at: scheduleDateTime ? new Date(scheduleDateTime).toISOString() : undefined,
+        next_send_at: scheduleDate && scheduleHour ? (() => {
+          const [y, m, d] = scheduleDate.split('-').map(Number);
+          return new Date(y, m - 1, d, parseInt(scheduleHour, 10), 0, 0).toISOString();
+        })() : undefined,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -189,7 +193,8 @@ function ClientDetailContent() {
     if (res.ok) {
       setClientSchedule(null);
       setScheduleEmail('');
-      setScheduleDateTime('');
+      setScheduleDate('');
+      setScheduleHour('9');
     }
   };
 
@@ -233,9 +238,14 @@ function ClientDetailContent() {
           setScheduleEmail(forClient.send_to_email);
           try {
             const d = new Date(forClient.next_send_at);
-            setScheduleDateTime(d.toISOString().slice(0, 16));
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            setScheduleDate(`${y}-${m}-${day}`);
+            setScheduleHour(String(d.getHours()).padStart(2, '0'));
           } catch {
-            setScheduleDateTime('');
+            setScheduleDate('');
+            setScheduleHour('9');
           }
         }
       });
@@ -510,19 +520,32 @@ function ClientDetailContent() {
                 />
               </div>
               <div>
-                <label htmlFor="schedule_datetime" className="block text-sm font-medium text-slate-700 mb-1">Data și ora programare</label>
+                <label htmlFor="schedule_date" className="block text-sm font-medium text-slate-700 mb-1">Data programare</label>
                 <input
-                  id="schedule_datetime"
-                  type="datetime-local"
-                  value={scheduleDateTime}
-                  onChange={(e) => setScheduleDateTime(e.target.value)}
-                  className="w-full min-w-[200px] px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  id="schedule_date"
+                  type="date"
+                  value={scheduleDate}
+                  onChange={(e) => setScheduleDate(e.target.value)}
+                  className="w-full min-w-[160px] px-3 py-2 border border-slate-300 rounded-lg text-sm"
                 />
+              </div>
+              <div>
+                <label htmlFor="schedule_hour" className="block text-sm font-medium text-slate-700 mb-1">Ora (0–23)</label>
+                <select
+                  id="schedule_hour"
+                  value={scheduleHour}
+                  onChange={(e) => setScheduleHour(e.target.value)}
+                  className="w-full min-w-[80px] px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                >
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <option key={i} value={String(i).padStart(2, '0')}>{String(i).padStart(2, '0')}:00</option>
+                  ))}
+                </select>
               </div>
               <div className="flex gap-2 shrink-0">
               <button
                 type="submit"
-                disabled={scheduleSaving || !scheduleEmail.trim()}
+                disabled={scheduleSaving || !scheduleEmail.trim() || !scheduleDate}
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 {scheduleSaving ? 'Se salvează…' : clientSchedule ? 'Actualizează programarea' : 'Programează'}
