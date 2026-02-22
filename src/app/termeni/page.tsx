@@ -7,6 +7,9 @@ export const metadata = {
   description: 'Termenii și condițiile de utilizare MetricLens.',
 };
 
+/** Pagina se randează la fiecare cerere, nu din cache, ca actualizările să apară după deploy. */
+export const dynamic = 'force-dynamic';
+
 export default function TermeniPage() {
   return (
     <div className="min-h-screen flex flex-col bg-[#ECEEF2]">
@@ -20,7 +23,7 @@ export default function TermeniPage() {
             Termeni și condiții
           </h1>
           <p className="text-slate-500 text-base mb-10">
-            Ultima actualizare: {new Date().toLocaleDateString('ro-RO')}
+            Document actualizat: {new Date().toLocaleDateString('ro-RO', { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
 
           <div className="prose prose-slate max-w-none space-y-8 text-slate-600 text-base leading-relaxed">
