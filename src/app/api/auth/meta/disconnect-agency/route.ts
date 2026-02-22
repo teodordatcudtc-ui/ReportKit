@@ -3,6 +3,15 @@ import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 
+function redirectToSettings(origin: string, search = '') {
+  return NextResponse.redirect(new URL(`/dashboard/agency${search}`, origin));
+}
+
+export async function GET(req: Request) {
+  const origin = new URL(req.url).origin;
+  return redirectToSettings(origin, '?success=meta_disconnected');
+}
+
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const origin = new URL(req.url).origin;
@@ -23,5 +32,5 @@ export async function POST(req: Request) {
     .from('clients')
     .update({ meta_ads_connected: false, meta_ad_account_id: null })
     .eq('agency_id', agency.id);
-  return NextResponse.redirect(new URL('/dashboard/agency?success=meta_disconnected', origin));
+  return redirectToSettings(origin, '?success=meta_disconnected');
 }
