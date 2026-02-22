@@ -62,6 +62,7 @@ function ClientDetailContent() {
   const [metricsRange, setMetricsRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
   const [metrics, setMetrics] = useState<{ google?: PlatformMetrics; meta?: PlatformMetrics } | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const success = searchParams.get('success');
   const error = searchParams.get('error');
@@ -269,8 +270,23 @@ function ClientDetailContent() {
           ← Înapoi la clienți
         </Link>
       </div>
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-slate-800">Client: {client.client_name}</h1>
+        <button
+          type="button"
+          onClick={async () => {
+            if (!confirm('Sigur vrei să ștergi acest client? Rapoartele și setările asociate vor fi șterse.')) return;
+            setDeleting(true);
+            const res = await fetch(`/api/clients/${clientId}`, { method: 'DELETE' });
+            setDeleting(false);
+            if (res.ok) window.location.href = '/clients';
+            else alert('Nu s-a putut șterge clientul.');
+          }}
+          disabled={deleting}
+          className="text-sm text-red-600 hover:text-red-700 font-medium disabled:opacity-50"
+        >
+          {deleting ? 'Se șterge…' : 'Șterge client'}
+        </button>
       </div>
 
       {success && (

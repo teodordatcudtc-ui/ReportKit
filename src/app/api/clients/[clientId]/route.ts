@@ -85,3 +85,21 @@ export async function PATCH(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ clientId: string }> }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { clientId } = await params;
+  if (!(await canAccessClient(session.user.id, clientId))) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+  const supabase = getSupabaseAdmin();
+  await supabase.from('api_tokens').delete().eq('client_id', clientId);
+  await supabase.from('reports').delete().eq('client_id', clientId);
+  const { error } = await supabase.from('clients').delete().eq('id', clientId);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
