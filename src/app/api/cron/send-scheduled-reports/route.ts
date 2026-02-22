@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { generateReportPdfBuffer } from '@/lib/report-pdf-generator';
 import { sendReportByResend } from '@/lib/send-report-email-resend';
@@ -8,21 +8,18 @@ export const maxDuration = 60;
 /** Folosim Node runtime ca să evităm limite de header pe Edge (400 Request Header Too Large) */
 export const runtime = 'nodejs';
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET?.trim() ?? '';
   const authHeader = req.headers.get('authorization');
-  let keyParam: string | null = null;
-  try {
-    const url = new URL(req.url);
-    keyParam = url.searchParams.get('key')?.trim() ?? null;
-  } catch {
-    const q = req.url.includes('?') ? req.url.split('?')[1] : '';
-    keyParam = new URLSearchParams(q).get('key')?.trim() ?? null;
-  }
+  // nextUrl.searchParams e modul recomandat în Next.js și funcționează corect pe Vercel
+  const keyParam = req.nextUrl.searchParams.get('key')?.trim() ?? null;
   const authorizedByHeader = secret.length > 0 && authHeader === `Bearer ${secret}`;
   const authorizedByKey = secret.length > 0 && keyParam !== null && keyParam === secret;
   if (secret.length > 0 && !authorizedByHeader && !authorizedByKey) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const res = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Debug temporar: vezi în Response Headers dacă key a sosit și dacă CRON_SECRET e setat (fără a le expune)
+    res.headers.set('X-Cron-Debug', `key=${keyParam ? 'yes' : 'no'}, secret=${secret ? 'set' : 'missing'}`);
+    return res;
   }
 
   const supabase = getSupabaseAdmin();
