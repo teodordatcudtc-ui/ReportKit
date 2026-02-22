@@ -24,13 +24,14 @@ export async function GET(req: Request) {
     console.error('Cron send-scheduled-reports fetch:', fetchErr);
     return NextResponse.json({ error: fetchErr.message }, { status: 500 });
   }
-  if (!due?.length) return NextResponse.json({ sent: 0, message: 'No reports due' });
+  if (!due?.length) return NextResponse.json({ sent: 0, total: 0, message: 'No reports due' });
 
   const lastMonth = new Date();
   lastMonth.setMonth(lastMonth.getMonth() - 1);
   const dateStart = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1).toISOString().slice(0, 10);
   const dateEnd = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0).toISOString().slice(0, 10);
 
+  const errors: { id: string; to: string; error: string }[] = [];
   let sent = 0;
   for (const row of due) {
     try {
@@ -59,9 +60,15 @@ export async function GET(req: Request) {
         .eq('id', row.id);
       sent++;
     } catch (e) {
-      console.error('Cron send report failed for', row.id, e);
+      const message = e instanceof Error ? e.message : String(e);
+      console.error('Cron send report failed for', row.id, message, e);
+      errors.push({ id: row.id, to: row.send_to_email ?? '', error: message });
     }
   }
 
-  return NextResponse.json({ sent, total: due.length });
+  return NextResponse.json({
+    sent,
+    total: due.length,
+    ...(errors.length ? { errors } : {}),
+  });
 }
