@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { OAuth2Client } from 'google-auth-library';
-import { canUseAsManagerAccount, listGoogleAdsClientAccounts } from '@/lib/google-ads';
+import { canUseAsManagerAccount } from '@/lib/google-ads';
 
 async function getAgencyId(userId: string): Promise<string | null> {
   const { data } = await getSupabaseAdmin()
@@ -136,36 +136,6 @@ export async function GET(req: Request) {
       },
       { onConflict: 'agency_id,platform' }
     );
-    if (devToken) {
-      const clients = await listGoogleAdsClientAccounts(managerCustomerId, tokens.access_token);
-      for (const c of clients) {
-        const { data: existing } = await supabase
-          .from('clients')
-          .select('id')
-          .eq('agency_id', agencyId)
-          .eq('google_ads_customer_id', c.id)
-          .limit(1)
-          .single();
-        if (existing) continue;
-        const { data: byName } = await supabase
-          .from('clients')
-          .select('id')
-          .eq('agency_id', agencyId)
-          .ilike('client_name', c.descriptive_name)
-          .limit(1)
-          .single();
-        if (byName?.id) {
-          await supabase.from('clients').update({ google_ads_customer_id: c.id, google_ads_connected: true }).eq('id', byName.id);
-        } else {
-          await supabase.from('clients').insert({
-            agency_id: agencyId,
-            client_name: c.descriptive_name,
-            google_ads_customer_id: c.id,
-            google_ads_connected: true,
-          });
-        }
-      }
-    }
     return NextResponse.redirect(new URL('/dashboard/agency?success=google_connected', req.url));
   }
 

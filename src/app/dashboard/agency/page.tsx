@@ -109,10 +109,10 @@ function AgencySettingsContent() {
     const success = searchParams.get('success');
     const err = searchParams.get('error');
     if (success === 'google_connected') {
-      setMessage('Google Ads conectat. Clientii din Manager Account au fost importati.');
+      setMessage('Google Ads conectat. La „Adaugă client” vei vedea lista de conturi din Manager Account.');
       setError('');
     } else if (success === 'meta_connected') {
-      setMessage('Meta Ads conectat. Ad account-urile au fost importate ca clienti.');
+      setMessage('Meta Ads conectat. La „Adaugă client” vei vedea lista de Ad Account-uri.');
       setError('');
     } else if (success === 'google_disconnected') {
       setMessage('Google Ads deconectat.');
@@ -387,14 +387,14 @@ function AgencySettingsContent() {
         <section className="bg-white border border-slate-200 rounded-rk-lg shadow-rk p-5 space-y-4">
           <h2 className="text-base font-semibold text-slate-900">Integrari</h2>
           <p className="text-xs text-slate-500">
-            Conectezi o singura data contul Manager (Google Ads) sau Business Manager (Meta). Clientii din cont vor fi importati automat.
+            Conectezi o singură dată contul Manager (Google Ads) sau Business Manager (Meta). La „Adaugă client” apar conturile disponibile; alegi pe care le adaugi.
           </p>
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 py-3 border-b border-slate-100">
               <div>
                 <p className="font-medium text-slate-800">Google Ads (Manager Account)</p>
                 <p className="text-sm text-slate-500">
-                  {agency.integrations?.google_ads ? 'Conectat – clientii din Manager Account sunt importati' : 'Neconectat'}
+                  {agency.integrations?.google_ads ? 'Conectat – vezi conturile la Adaugă client' : 'Neconectat'}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -418,7 +418,7 @@ function AgencySettingsContent() {
               <div>
                 <p className="font-medium text-slate-800">Meta Ads (Business Manager)</p>
                 <p className="text-sm text-slate-500">
-                  {agency.integrations?.meta_ads ? 'Conectat – ad account-urile sunt importate ca clienti' : 'Neconectat'}
+                  {agency.integrations?.meta_ads ? 'Conectat – vezi conturile la Adaugă client' : 'Neconectat'}
                 </p>
               </div>
               <div className="flex items-center gap-2">

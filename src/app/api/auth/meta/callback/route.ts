@@ -72,17 +72,6 @@ export async function GET(req: Request) {
     if (!agencyId) {
       return NextResponse.redirect(new URL('/dashboard/agency?error=no_agency', req.url));
     }
-    let adAccounts: { id: string; name?: string }[] = [];
-    try {
-      const adAccountsRes = await fetch(
-        `https://graph.facebook.com/v21.0/me/adaccounts?fields=id,name&access_token=${encodeURIComponent(longLivedToken)}`
-      );
-      const adAccountsData = (await adAccountsRes.json()) as {
-        data?: { id: string; name?: string }[];
-        error?: { message: string };
-      };
-      adAccounts = adAccountsData?.data ?? [];
-    } catch {}
     await supabase.from('agency_tokens').upsert(
       {
         agency_id: agencyId,
@@ -95,35 +84,6 @@ export async function GET(req: Request) {
       },
       { onConflict: 'agency_id,platform' }
     );
-    for (const acc of adAccounts) {
-      const adAccountId = acc.id?.startsWith('act_') ? acc.id : `act_${acc.id}`;
-      const name = acc.name ?? adAccountId;
-      const { data: existing } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('agency_id', agencyId)
-        .eq('meta_ad_account_id', adAccountId)
-        .limit(1)
-        .single();
-      if (existing) continue;
-      const { data: byName } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('agency_id', agencyId)
-        .ilike('client_name', name)
-        .limit(1)
-        .single();
-      if (byName?.id) {
-        await supabase.from('clients').update({ meta_ad_account_id: adAccountId, meta_ads_connected: true }).eq('id', byName.id);
-      } else {
-        await supabase.from('clients').insert({
-          agency_id: agencyId,
-          client_name: name,
-          meta_ad_account_id: adAccountId,
-          meta_ads_connected: true,
-        });
-      }
-    }
     return NextResponse.redirect(new URL('/dashboard/agency?success=meta_connected', req.url));
   }
 
