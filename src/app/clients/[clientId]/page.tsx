@@ -24,6 +24,8 @@ interface ClientDetail {
   client_name: string;
   google_ads_connected: boolean;
   meta_ads_connected: boolean;
+  google_ads_customer_id?: string | null;
+  meta_ad_account_id?: string | null;
   report_settings?: unknown;
   skip_report_modal?: boolean;
   tokens: { platform: string; account_id: string | null }[];
@@ -63,9 +65,91 @@ function ClientDetailContent() {
   const [metrics, setMetrics] = useState<{ google?: PlatformMetrics; meta?: PlatformMetrics } | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [connectModal, setConnectModal] = useState<'google' | 'meta' | null>(null);
+  const [googleAccounts, setGoogleAccounts] = useState<{ id: string; descriptive_name: string }[]>([]);
+  const [metaAccounts, setMetaAccounts] = useState<{ id: string; name: string }[]>([]);
+  const [hasGoogleConnection, setHasGoogleConnection] = useState(false);
+  const [hasMetaConnection, setHasMetaConnection] = useState(false);
+  const [accountsLoading, setAccountsLoading] = useState(false);
+  const [linkingAccount, setLinkingAccount] = useState<'google' | 'meta' | null>(null);
 
   const success = searchParams.get('success');
   const error = searchParams.get('error');
+
+  useEffect(() => {
+    if (!connectModal) return;
+    setAccountsLoading(true);
+    if (connectModal === 'google') {
+      fetch('/api/clients/available-google-accounts')
+        .then((r) => r.json())
+        .then((d) => {
+          setGoogleAccounts(d.accounts ?? []);
+          setHasGoogleConnection(d.has_connection === true);
+        })
+        .finally(() => setAccountsLoading(false));
+    } else {
+      fetch('/api/clients/available-meta-accounts')
+        .then((r) => r.json())
+        .then((d) => {
+          setMetaAccounts(d.accounts ?? []);
+          setHasMetaConnection(d.has_connection === true);
+        })
+        .finally(() => setAccountsLoading(false));
+    }
+  }, [connectModal]);
+
+  const refetchClient = useCallback(() => {
+    if (!clientId) return;
+    fetch(`/api/clients/${clientId}`)
+      .then((r) => r.json())
+      .then((data) => setClient(data));
+  }, [clientId]);
+
+  const handleLinkGoogle = async (account: { id: string }) => {
+    setLinkingAccount('google');
+    const res = await fetch(`/api/clients/${clientId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ google_ads_customer_id: account.id }),
+    });
+    setLinkingAccount(null);
+    if (res.ok) {
+      setConnectModal(null);
+      refetchClient();
+    }
+  };
+
+  const handleLinkMeta = async (account: { id: string }) => {
+    setLinkingAccount('meta');
+    const res = await fetch(`/api/clients/${clientId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ meta_ad_account_id: account.id }),
+    });
+    setLinkingAccount(null);
+    if (res.ok) {
+      setConnectModal(null);
+      refetchClient();
+    }
+  };
+
+  const handleUnlinkGoogle = async () => {
+    const res = await fetch(`/api/clients/${clientId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ google_ads_customer_id: null }),
+    });
+    if (res.ok) refetchClient();
+  };
+
+  const handleUnlinkMeta = async () => {
+    const res = await fetch(`/api/clients/${clientId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ meta_ad_account_id: null }),
+    });
+    if (res.ok) refetchClient();
+  };
 
   useEffect(() => {
     if (!clientId) return;
@@ -305,30 +389,33 @@ function ClientDetailContent() {
 
       <section className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
         <h2 className="font-semibold text-slate-800">Stare conexiuni</h2>
+        <p className="text-sm text-slate-600">Alege un cont din cele gestionate de agenție (conectate în Setări agenție).</p>
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between py-2 border-b border-slate-100">
             <div>
               <p className="font-medium text-slate-700">Google Ads</p>
               <p className="text-sm text-slate-500">
                 {client.google_ads_connected
-                  ? `Conectat${googleToken?.account_id ? ` (${googleToken.account_id})` : ''}`
+                  ? `Conectat${(client.google_ads_customer_id ?? googleToken?.account_id) ? ` (${client.google_ads_customer_id ?? googleToken?.account_id})` : ''}`
                   : 'Neconectat'}
               </p>
             </div>
             {client.google_ads_connected ? (
-              <form action="/api/auth/google/disconnect" method="POST" className="inline">
-                <input type="hidden" name="client_id" value={clientId} />
-                <button type="submit" className="text-sm text-slate-500 hover:text-red-600 font-medium">
-                  Deconectare
-                </button>
-              </form>
+              <button
+                type="button"
+                onClick={handleUnlinkGoogle}
+                className="text-sm text-slate-500 hover:text-red-600 font-medium"
+              >
+                Deconectare
+              </button>
             ) : (
-              <a
-                href={`/api/auth/google/connect?client_id=${clientId}`}
+              <button
+                type="button"
+                onClick={() => setConnectModal('google')}
                 className="text-sm text-blue-600 hover:underline font-medium"
               >
                 Conectează Google Ads
-              </a>
+              </button>
             )}
           </div>
           <div className="flex items-center justify-between py-2">
@@ -336,28 +423,94 @@ function ClientDetailContent() {
               <p className="font-medium text-slate-700">Meta Ads</p>
               <p className="text-sm text-slate-500">
                 {client.meta_ads_connected
-                  ? `Conectat${metaToken?.account_id ? ` (${metaToken.account_id})` : ''}`
+                  ? `Conectat${(client.meta_ad_account_id ?? metaToken?.account_id) ? ` (${client.meta_ad_account_id ?? metaToken?.account_id})` : ''}`
                   : 'Neconectat'}
               </p>
             </div>
             {client.meta_ads_connected ? (
-              <form action="/api/auth/meta/disconnect" method="POST" className="inline">
-                <input type="hidden" name="client_id" value={clientId} />
-                <button type="submit" className="text-sm text-slate-500 hover:text-red-600 font-medium">
-                  Deconectare
-                </button>
-              </form>
+              <button
+                type="button"
+                onClick={handleUnlinkMeta}
+                className="text-sm text-slate-500 hover:text-red-600 font-medium"
+              >
+                Deconectare
+              </button>
             ) : (
-              <a
-                href={`/api/auth/meta/connect?client_id=${clientId}`}
+              <button
+                type="button"
+                onClick={() => setConnectModal('meta')}
                 className="text-sm text-blue-600 hover:underline font-medium"
               >
                 Conectează Meta Ads
-              </a>
+              </button>
             )}
           </div>
         </div>
       </section>
+
+      {connectModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 max-h-[80vh] overflow-y-auto">
+            <h3 className="font-semibold text-slate-800">
+              {connectModal === 'google' ? 'Selectează cont Google Ads' : 'Selectează Ad Account Meta'}
+            </h3>
+            {accountsLoading ? (
+              <p className="mt-4 text-slate-500">Se încarcă conturile…</p>
+            ) : connectModal === 'google' ? (
+              !hasGoogleConnection ? (
+                <p className="mt-4 text-sm text-slate-600">Conectează Google Ads în Setări agenție pentru a vedea lista.</p>
+              ) : googleAccounts.length === 0 ? (
+                <p className="mt-4 text-sm text-slate-600">Toate conturile din Manager sunt deja alocate. Adaugă un cont nou în Google Ads.</p>
+              ) : (
+                <ul className="mt-4 border border-slate-200 rounded-lg divide-y divide-slate-200 max-h-64 overflow-y-auto">
+                  {googleAccounts.map((acc) => (
+                    <li key={acc.id} className="flex items-center justify-between px-3 py-2">
+                      <span className="text-sm text-slate-800 truncate" title={acc.descriptive_name}>{acc.descriptive_name}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleLinkGoogle(acc)}
+                        disabled={linkingAccount !== null}
+                        className="ml-2 px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {linkingAccount === 'google' ? 'Se leagă…' : 'Alege'}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )
+            ) : !hasMetaConnection ? (
+              <p className="mt-4 text-sm text-slate-600">Conectează Meta Ads în Setări agenție pentru a vedea lista.</p>
+            ) : metaAccounts.length === 0 ? (
+              <p className="mt-4 text-sm text-slate-600">Toate Ad Account-urile sunt deja alocate.</p>
+            ) : (
+              <ul className="mt-4 border border-slate-200 rounded-lg divide-y divide-slate-200 max-h-64 overflow-y-auto">
+                {metaAccounts.map((acc) => (
+                  <li key={acc.id} className="flex items-center justify-between px-3 py-2">
+                    <span className="text-sm text-slate-800 truncate" title={acc.name}>{acc.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleLinkMeta(acc)}
+                      disabled={linkingAccount !== null}
+                      className="ml-2 px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {linkingAccount === 'meta' ? 'Se leagă…' : 'Alege'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setConnectModal(null)}
+                className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg"
+              >
+                Închide
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {(client.google_ads_connected || client.meta_ads_connected) && (
         <section className="space-y-4">

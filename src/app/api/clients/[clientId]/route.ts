@@ -57,6 +57,8 @@ export async function GET(
 const patchSchema = z.object({
   report_settings: z.record(z.string(), z.unknown()).optional(),
   skip_report_modal: z.boolean().optional(),
+  google_ads_customer_id: z.string().nullable().optional(),
+  meta_ad_account_id: z.string().nullable().optional(),
 });
 
 export async function PATCH(
@@ -75,6 +77,14 @@ export async function PATCH(
   const updates: Record<string, unknown> = {};
   if (parsed.data.report_settings !== undefined) updates.report_settings = parsed.data.report_settings;
   if (parsed.data.skip_report_modal !== undefined) updates.skip_report_modal = parsed.data.skip_report_modal;
+  if (parsed.data.google_ads_customer_id !== undefined) {
+    updates.google_ads_customer_id = parsed.data.google_ads_customer_id;
+    updates.google_ads_connected = Boolean(parsed.data.google_ads_customer_id);
+  }
+  if (parsed.data.meta_ad_account_id !== undefined) {
+    updates.meta_ad_account_id = parsed.data.meta_ad_account_id;
+    updates.meta_ads_connected = Boolean(parsed.data.meta_ad_account_id);
+  }
   if (Object.keys(updates).length === 0) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
   const { data, error } = await getSupabaseAdmin()
     .from('clients')
