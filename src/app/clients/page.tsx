@@ -16,6 +16,11 @@ interface GoogleAccount {
   descriptive_name: string;
 }
 
+interface MetaAccount {
+  id: string;
+  name: string;
+}
+
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,6 +30,8 @@ export default function ClientsPage() {
   const [error, setError] = useState('');
   const [googleAccounts, setGoogleAccounts] = useState<GoogleAccount[]>([]);
   const [hasGoogleConnection, setHasGoogleConnection] = useState(false);
+  const [metaAccounts, setMetaAccounts] = useState<MetaAccount[]>([]);
+  const [hasMetaConnection, setHasMetaConnection] = useState(false);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [addMode, setAddMode] = useState<'choose' | 'manual'>('choose');
 
@@ -44,14 +51,17 @@ export default function ClientsPage() {
     if (!modalOpen) return;
     setLoadingAccounts(true);
     setAddMode('choose');
-    fetch('/api/clients/available-google-accounts')
-      .then((r) => r.json())
-      .then((data) => {
-        setGoogleAccounts(data.accounts ?? []);
-        setHasGoogleConnection(data.has_connection === true);
-        setLoadingAccounts(false);
+    Promise.all([
+      fetch('/api/clients/available-google-accounts').then((r) => r.json()),
+      fetch('/api/clients/available-meta-accounts').then((r) => r.json()),
+    ])
+      .then(([googleData, metaData]) => {
+        setGoogleAccounts(googleData.accounts ?? []);
+        setHasGoogleConnection(googleData.has_connection === true);
+        setMetaAccounts(metaData.accounts ?? []);
+        setHasMetaConnection(metaData.has_connection === true);
       })
-      .catch(() => setLoadingAccounts(false));
+      .finally(() => setLoadingAccounts(false));
   }, [modalOpen]);
 
   async function handleAddManual(e: React.FormEvent) {
@@ -93,6 +103,28 @@ export default function ClientsPage() {
       return;
     }
     setGoogleAccounts((prev) => prev.filter((a) => a.id !== account.id));
+    load();
+    if (data.id) window.location.href = `/clients/${data.id}`;
+  }
+
+  async function handleAddFromMeta(account: MetaAccount) {
+    setError('');
+    setSubmitting(true);
+    const res = await fetch('/api/clients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_name: account.name,
+        meta_ad_account_id: account.id,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setSubmitting(false);
+    if (!res.ok) {
+      setError(data.error ?? 'Nu s-a putut adăuga clientul.');
+      return;
+    }
+    setMetaAccounts((prev) => prev.filter((a) => a.id !== account.id));
     load();
     if (data.id) window.location.href = `/clients/${data.id}`;
   }
@@ -176,10 +208,10 @@ export default function ClientsPage() {
             )}
 
             {loadingAccounts ? (
-              <p className="mt-4 text-slate-500">Se încarcă conturile Google Ads…</p>
+              <p className="mt-4 text-slate-500">Se încarcă conturile…</p>
             ) : addMode === 'manual' ? (
               <form onSubmit={handleAddManual} className="mt-4 space-y-4">
-                <p className="text-sm text-slate-600">Client fără cont Google Ads sau adaugă manual.</p>
+                <p className="text-sm text-slate-600">Client fără cont Google/Meta Ads sau adaugă manual.</p>
                 <div>
                   <label htmlFor="client_name" className="block text-sm font-medium text-slate-700 mb-1">
                     Nume client
@@ -216,7 +248,7 @@ export default function ClientsPage() {
                 {hasGoogleConnection && googleAccounts.length > 0 && (
                   <div>
                     <p className="text-sm font-medium text-slate-700 mb-2">Selectează din Google Ads (Manager Account)</p>
-                    <ul className="border border-slate-200 rounded-lg divide-y divide-slate-200 max-h-48 overflow-y-auto">
+                    <ul className="border border-slate-200 rounded-lg divide-y divide-slate-200 max-h-40 overflow-y-auto">
                       {googleAccounts.map((acc) => (
                         <li key={acc.id} className="flex items-center justify-between px-3 py-2">
                           <span className="text-sm text-slate-800 truncate" title={acc.descriptive_name}>{acc.descriptive_name}</span>
@@ -235,18 +267,50 @@ export default function ClientsPage() {
                   </div>
                 )}
                 {hasGoogleConnection && googleAccounts.length === 0 && (
-                  <p className="text-sm text-slate-600">Toate conturile din Manager Account sunt deja adăugate ca clienți.</p>
+                  <p className="text-sm text-slate-600">Toate conturile Google Ads din Manager sunt deja adăugate.</p>
                 )}
                 {!hasGoogleConnection && (
-                  <p className="text-sm text-slate-600">Conectează Google Ads în Setări agenție pentru a vedea aici lista de clienți din Manager Account.</p>
+                  <p className="text-sm text-slate-600">Conectează Google Ads în Setări agenție pentru a vedea lista de conturi.</p>
                 )}
+
+                {hasMetaConnection && metaAccounts.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 mb-2">Selectează din Meta Ads (Ad Accounts)</p>
+                    <ul className="border border-slate-200 rounded-lg divide-y divide-slate-200 max-h-40 overflow-y-auto">
+                      {metaAccounts.map((acc) => (
+                        <li key={acc.id} className="flex items-center justify-between px-3 py-2">
+                          <span className="text-sm text-slate-800 truncate" title={acc.name}>{acc.name}</span>
+                          <span className="text-xs text-slate-500 ml-2 shrink-0">{acc.id}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleAddFromMeta(acc)}
+                            disabled={submitting}
+                            className="ml-2 px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            Adaugă
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {hasMetaConnection && metaAccounts.length === 0 && (
+                  <p className="text-sm text-slate-600">Toate Ad Account-urile Meta sunt deja adăugate.</p>
+                )}
+                {!hasMetaConnection && !hasGoogleConnection && (
+                  <p className="text-sm text-slate-600">Conectează Google Ads sau Meta Ads în Setări agenție pentru a vedea listele de conturi.</p>
+                )}
+                {!hasMetaConnection && hasGoogleConnection && (
+                  <p className="text-sm text-slate-600">Conectează Meta Ads în Setări agenție pentru a vedea Ad Account-urile.</p>
+                )}
+
                 <div className="pt-2 border-t border-slate-200">
                   <button
                     type="button"
                     onClick={() => setAddMode('manual')}
                     className="text-sm text-blue-600 hover:underline"
                   >
-                    + Adaugă client manual (fără Google Ads)
+                    + Adaugă client manual (fără Google/Meta Ads)
                   </button>
                 </div>
                 <div className="flex justify-end">
