@@ -28,7 +28,7 @@ export async function generateReportPdfBuffer(
 
   const { data: client, error: clientErr } = await supabase
     .from('clients')
-    .select('client_name, google_ads_connected, meta_ads_connected, google_ads_customer_id, meta_ad_account_id')
+    .select('client_name, google_ads_connected, meta_ads_connected, google_ads_customer_id, meta_ad_account_id, report_settings')
     .eq('id', clientId)
     .eq('agency_id', agencyId)
     .single();
@@ -41,7 +41,9 @@ export async function generateReportPdfBuffer(
     .single();
   if (agencyErr || !agency) throw new Error('Agency not found');
 
-  const reportSettings = normalizeReportSettings(reportSettingsOverride ?? agency.report_settings ?? null);
+  const reportSettings = normalizeReportSettings(
+    reportSettingsOverride ?? (client as { report_settings?: unknown }).report_settings ?? agency.report_settings ?? null
+  );
 
   const { data: agencyTokens } = await supabase.from('agency_tokens').select('*').eq('agency_id', agencyId);
   const agencyGoogle = (agencyTokens ?? []).find((t: { platform: string }) => t.platform === 'google_ads');
